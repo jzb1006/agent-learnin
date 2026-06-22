@@ -32,6 +32,47 @@
 - 不执行重启、部署、改配置、写数据库等高风险操作
 - 写操作只保留接口设计和审批流程说明
 
+## Java 框架选型
+
+主线推荐：
+
+- Spring Boot + Spring AI
+- Spring AI MCP / MCP Java SDK
+
+选择理由：
+
+- 与 Java 后端开发习惯一致，适合从 Spring Boot 工程自然进入 Agent 应用工程
+- Spring AI 覆盖 LLM API、结构化输出、Tool Calling、RAG 和 Observability
+- Spring AI MCP / MCP Java SDK 适合把排障工具标准化为 MCP 工具，而不是写死在 Agent 代码里
+- 后续可以平滑接入真实 Java 项目的日志、配置、Git、接口文档和历史故障案例
+
+本项目默认技术路线：
+
+```text
+主框架：Spring Boot + Spring AI
+MCP：Spring AI MCP / MCP Java SDK
+RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
+观测：Spring AI Observability + Micrometer / OpenTelemetry
+评测：先自建 eval case，后续再对照 Google ADK 的评测思路
+```
+
+对照学习框架：
+
+| 框架 | 学习定位 | 何时学习 |
+| --- | --- | --- |
+| Spring AI | 主线框架，负责 LLM API、Tool Calling、RAG、Observability | 从 Day 04 开始贯穿全程 |
+| Spring AI MCP / MCP Java SDK | 主线 MCP 实现，负责 MCP Server 和 MCP Client | 第 3 周重点学习 |
+| LangChain4j | 对照框架，重点比较 RAG、Tools、Memory、Agent 抽象 | 主线跑通后再学习 |
+| Google ADK Java | Agent-first 对照框架，重点学习 Agent 编排、多 Agent 和评测思路 | 第 6 周后扩展学习 |
+| Semantic Kernel Java | 企业级 Agent / Azure 生态对照框架 | 有 Azure 或企业集成需求时学习 |
+| Quarkus LangChain4j | Quarkus / 云原生 / GraalVM 场景对照框架 | 非当前主线，后续按需学习 |
+
+学习原则：
+
+- 第一阶段只使用 Spring Boot + Spring AI + MCP，避免同时引入多个 Agent 框架
+- LangChain4j、Google ADK Java 和 Semantic Kernel Java 只作为对照，不参与 MVP 实现
+- 框架学习服务于排障 Agent 主线，不为了覆盖技术清单而引入复杂依赖
+
 ## 学习状态约定
 
 - `[ ]` 未学习
