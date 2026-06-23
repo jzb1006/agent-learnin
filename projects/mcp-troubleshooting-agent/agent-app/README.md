@@ -39,7 +39,20 @@ src/main/java/io/github/jiangzhibin/agentlearning/llm/
   OpenAiCompatibleChatModelClient.java
 ```
 
-当前只支持 OpenAI-compatible 非流式文本调用，不包含结构化输出、Tool Calling、MCP Client 或 CLI / REST 入口。
+Day 07 已新增结构化诊断报告边界：
+
+```text
+src/main/java/io/github/jiangzhibin/agentlearning/report/
+  DiagnosticReport.java
+  DiagnosticReportGenerator.java
+  DiagnosticReportParser.java
+  DiagnosticReportParseException.java
+  RiskLevel.java
+```
+
+当前支持 OpenAI-compatible 非流式文本调用，以及把模型输出解析为 `summary / evidence / nextActions / riskLevel` 结构化报告。
+
+仍不包含 Tool Calling、MCP Client、RAG、Memory、Agent Loop 或 CLI / REST 入口。
 
 ## 本地验证
 
