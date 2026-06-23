@@ -144,7 +144,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：设计只读工具接口规范
   - 验收标准：能说明工具调用、结构化输出和普通文本回答的区别
 
-- [ ] Day 09：实现本地只读工具 `search_code`
+- [x] Day 09：实现本地只读工具 `search_code`
   - 学习重点：代码搜索、输入限制、结果裁剪、路径约束
   - 实践产出：按关键词搜索目标 Java 项目源码
   - 验收标准：输入关键词能返回相关文件路径和片段，且不能越过允许根目录
@@ -367,12 +367,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 06：实现最小 LLM API 调用 | 已完成 | 实现 `ChatModelClient` 模型调用边界和 OpenAI-compatible 非流式客户端，明确模型供应商可替换、模型失败应作为 Agent 可识别的受控失败处理，并坚持先打通普通文本回复，结构化诊断报告留到 Day 07。 |
 | 2026-06-23 | Day 07：实现结构化输出 | 已完成 | 实现 `DiagnosticReport` 结构化报告契约、JSON 解析和字段校验，明确结构化输出只能保证形状可解析，真实结论仍需依赖工具、RAG 来源和 trace 证据校验。 |
 | 2026-06-23 | Day 08：理解 Tool Calling 的执行模型 | 已完成 | 建立 `TroubleshootingTool`、`ToolDefinition`、`ToolCall`、`ToolResult` 等只读工具调用契约，明确模型负责选工具、生成参数和消费 observation，程序负责校验、权限、执行和结构化返回，并理解失败 observation 与幂等只读工具边界。 |
+| 2026-06-23 | Day 09：实现本地只读工具 `search_code` | 已完成 | 实现 `LocalCodeSearchTool` 本地只读源码搜索工具，明确关键词输入限制、允许根目录、符号链接越权风险、结果裁剪和“未找到” observation 的边界，并通过单元测试覆盖正常搜索、参数错误、结果上限和路径越界防护。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：8
-- 当前建议节点：Day 09
+- 已学习：9
+- 当前建议节点：Day 10
 
 ## 后续标记方式
 
