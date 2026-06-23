@@ -112,7 +112,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：定义首个用户问题和预期诊断报告格式
   - 验收标准：MVP 不包含重启、部署、改配置、写数据库等高风险操作
 
-- [ ] Day 03：学习 Prompt / Instruction Engineering
+- [x] Day 03：学习 Prompt / Instruction Engineering
   - 学习重点：system instruction、developer instruction、tool instruction、输出格式约束
   - 实践产出：设计排障 Agent 的基础指令和诊断报告格式约束
   - 验收标准：Prompt 中不写死具体业务逻辑，业务能力通过工具和知识库提供
@@ -361,12 +361,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-22 | 初始化学习路径 | 已完成 | 确定以 MCP 优先排障 Agent 串联完整 AI Agent 学习主线。 |
 | 2026-06-23 | Day 01：理解 AI Agent 与普通 LLM 应用的区别 | 已完成 | 明确普通 LLM 应用、Tool Calling 应用和 Agent 应用的边界，确认排障 Agent 应以多步证据收集、观察和收敛为核心，并坚持第一阶段只读边界。 |
 | 2026-06-23 | Day 02：明确排障 Agent 的 MVP 范围 | 已完成 | 明确第一版 MVP 只做 Java 后端接口异常的只读诊断，定义首个用户问题、只读证据源、排除的高风险操作和诊断报告格式。 |
+| 2026-06-23 | Day 03：学习 Prompt / Instruction Engineering | 已完成 | 明确 system instruction、developer instruction、tool instruction 的职责分工，确认 Prompt 负责行为契约和输出格式约束，不承载业务事实，业务能力应通过工具和知识库提供。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：2
-- 当前建议节点：Day 03
+- 已学习：3
+- 当前建议节点：Day 04
 
 ## 后续标记方式
 
