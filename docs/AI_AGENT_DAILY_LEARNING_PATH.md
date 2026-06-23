@@ -102,7 +102,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 
 ### 第 1 周：Agent 基础、Prompt 与工程骨架
 
-- [ ] Day 01：理解 AI Agent 与普通 LLM 应用的区别
+- [x] Day 01：理解 AI Agent 与普通 LLM 应用的区别
   - 学习重点：LLM 应用、Tool Calling 应用、Agent 应用的边界
   - 实践产出：写出本项目的 Agent 工作流图
   - 验收标准：能解释为什么排障场景适合 Agent
@@ -359,12 +359,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 日期 | 节点 | 状态 | 总结 |
 | --- | --- | --- | --- |
 | 2026-06-22 | 初始化学习路径 | 已完成 | 确定以 MCP 优先排障 Agent 串联完整 AI Agent 学习主线。 |
+| 2026-06-23 | Day 01：理解 AI Agent 与普通 LLM 应用的区别 | 已完成 | 明确普通 LLM 应用、Tool Calling 应用和 Agent 应用的边界，确认排障 Agent 应以多步证据收集、观察和收敛为核心，并坚持第一阶段只读边界。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：0
-- 当前建议节点：Day 01
+- 已学习：1
+- 当前建议节点：Day 02
 
 ## 后续标记方式
 
