@@ -50,9 +50,23 @@ src/main/java/io/github/jiangzhibin/agentlearning/report/
   RiskLevel.java
 ```
 
-当前支持 OpenAI-compatible 非流式文本调用，以及把模型输出解析为 `summary / evidence / nextActions / riskLevel` 结构化报告。
+Day 08 已新增工具调用契约边界：
 
-仍不包含 Tool Calling、MCP Client、RAG、Memory、Agent Loop 或 CLI / REST 入口。
+```text
+src/main/java/io/github/jiangzhibin/agentlearning/tool/
+  TroubleshootingTool.java
+  ToolDefinition.java
+  ToolParameter.java
+  ToolParameterType.java
+  ToolCall.java
+  ToolResult.java
+  ToolResultStatus.java
+  ToolEvidence.java
+```
+
+当前支持 OpenAI-compatible 非流式文本调用，把模型输出解析为 `summary / evidence / nextActions / riskLevel` 结构化报告，并定义只读工具调用的本地 Java 契约。
+
+仍不包含真实工具实现、MCP Client、RAG、Memory、Agent Loop 或 CLI / REST 入口。
 
 ## 本地验证
 

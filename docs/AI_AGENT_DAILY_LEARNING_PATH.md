@@ -139,7 +139,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：诊断报告结构 `summary / evidence / nextActions / riskLevel`
   - 验收标准：模型输出可以稳定解析为 Java 对象
 
-- [ ] Day 08：理解 Tool Calling 的执行模型
+- [x] Day 08：理解 Tool Calling 的执行模型
   - 学习重点：工具 schema、参数、返回值、失败语义、幂等性
   - 实践产出：设计只读工具接口规范
   - 验收标准：能说明工具调用、结构化输出和普通文本回答的区别
@@ -366,12 +366,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 05：配置管理与运行入口设计 | 已完成 | 明确 DeepSeek 模型配置、目标项目路径、只读根目录、环境变量和 CLI / REST 入口草案，确认敏感配置不进入仓库，入口复用同一套配置对象，并保持只读访问边界。 |
 | 2026-06-23 | Day 06：实现最小 LLM API 调用 | 已完成 | 实现 `ChatModelClient` 模型调用边界和 OpenAI-compatible 非流式客户端，明确模型供应商可替换、模型失败应作为 Agent 可识别的受控失败处理，并坚持先打通普通文本回复，结构化诊断报告留到 Day 07。 |
 | 2026-06-23 | Day 07：实现结构化输出 | 已完成 | 实现 `DiagnosticReport` 结构化报告契约、JSON 解析和字段校验，明确结构化输出只能保证形状可解析，真实结论仍需依赖工具、RAG 来源和 trace 证据校验。 |
+| 2026-06-23 | Day 08：理解 Tool Calling 的执行模型 | 已完成 | 建立 `TroubleshootingTool`、`ToolDefinition`、`ToolCall`、`ToolResult` 等只读工具调用契约，明确模型负责选工具、生成参数和消费 observation，程序负责校验、权限、执行和结构化返回，并理解失败 observation 与幂等只读工具边界。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：7
-- 当前建议节点：Day 08
+- 已学习：8
+- 当前建议节点：Day 09
 
 ## 后续标记方式
 
