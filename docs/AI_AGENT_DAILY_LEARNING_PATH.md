@@ -122,7 +122,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：创建 `agent-app`、`mcp-server`、`knowledge-base`、`evals`、`traces`
   - 验收标准：目录结构能支撑 LLM、MCP、RAG、Memory、Evals 后续扩展
 
-- [ ] Day 05：配置管理与运行入口设计
+- [x] Day 05：配置管理与运行入口设计
   - 学习重点：模型配置、目标项目路径、只读根目录、环境变量和本地 profile
   - 实践产出：定义配置文件结构和 CLI / REST 运行入口草案
   - 验收标准：敏感配置不进入代码仓库，目标项目访问路径可配置
@@ -363,12 +363,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 02：明确排障 Agent 的 MVP 范围 | 已完成 | 明确第一版 MVP 只做 Java 后端接口异常的只读诊断，定义首个用户问题、只读证据源、排除的高风险操作和诊断报告格式。 |
 | 2026-06-23 | Day 03：学习 Prompt / Instruction Engineering | 已完成 | 明确 system instruction、developer instruction、tool instruction 的职责分工，确认 Prompt 负责行为契约和输出格式约束，不承载业务事实，业务能力应通过工具和知识库提供。 |
 | 2026-06-23 | Day 04：初始化项目结构 | 已完成 | 创建 `agent-app`、`mcp-server`、`knowledge-base`、`evals`、`traces` 五个核心模块，明确 Agent 编排、MCP 能力、知识库、评测和 trace 的职责边界，并确认 trace 脱敏与 eval 契约测试价值。 |
+| 2026-06-23 | Day 05：配置管理与运行入口设计 | 已完成 | 明确 DeepSeek 模型配置、目标项目路径、只读根目录、环境变量和 CLI / REST 入口草案，确认敏感配置不进入仓库，入口复用同一套配置对象，并保持只读访问边界。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：4
-- 当前建议节点：Day 05
+- 已学习：5
+- 当前建议节点：Day 06
 
 ## 后续标记方式
 
