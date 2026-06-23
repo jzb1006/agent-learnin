@@ -117,7 +117,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：设计排障 Agent 的基础指令和诊断报告格式约束
   - 验收标准：Prompt 中不写死具体业务逻辑，业务能力通过工具和知识库提供
 
-- [ ] Day 04：初始化项目结构
+- [x] Day 04：初始化项目结构
   - 学习重点：模块边界、职责划分、Agent 与工具解耦
   - 实践产出：创建 `agent-app`、`mcp-server`、`knowledge-base`、`evals`、`traces`
   - 验收标准：目录结构能支撑 LLM、MCP、RAG、Memory、Evals 后续扩展
@@ -362,12 +362,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 01：理解 AI Agent 与普通 LLM 应用的区别 | 已完成 | 明确普通 LLM 应用、Tool Calling 应用和 Agent 应用的边界，确认排障 Agent 应以多步证据收集、观察和收敛为核心，并坚持第一阶段只读边界。 |
 | 2026-06-23 | Day 02：明确排障 Agent 的 MVP 范围 | 已完成 | 明确第一版 MVP 只做 Java 后端接口异常的只读诊断，定义首个用户问题、只读证据源、排除的高风险操作和诊断报告格式。 |
 | 2026-06-23 | Day 03：学习 Prompt / Instruction Engineering | 已完成 | 明确 system instruction、developer instruction、tool instruction 的职责分工，确认 Prompt 负责行为契约和输出格式约束，不承载业务事实，业务能力应通过工具和知识库提供。 |
+| 2026-06-23 | Day 04：初始化项目结构 | 已完成 | 创建 `agent-app`、`mcp-server`、`knowledge-base`、`evals`、`traces` 五个核心模块，明确 Agent 编排、MCP 能力、知识库、评测和 trace 的职责边界，并确认 trace 脱敏与 eval 契约测试价值。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：3
-- 当前建议节点：Day 04
+- 已学习：4
+- 当前建议节点：Day 05
 
 ## 后续标记方式
 
