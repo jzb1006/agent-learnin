@@ -2,6 +2,11 @@
 
 目标：从 Java 后端开发转向 AI Agent 应用工程，重点掌握 LLM API、工具调用、RAG、Agent 编排、MCP、评测与生产化。
 
+## 学习入口
+
+- [45 天每日学习路线](docs/AI_AGENT_DAILY_LEARNING_PATH.md)
+- [AI Agent 教学路线与带学方案](docs/AI_AGENT_TEACHING_GUIDE.md)
+
 ## 学习阶段
 
 ### 1. LLM API 基础
@@ -113,4 +118,3 @@
 - YAGNI：不提前设计复杂多 Agent 系统。
 - DRY：工具调用、模型调用、日志记录要统一封装。
 - SOLID：工具能力与 Agent 编排解耦，避免业务逻辑写死在 Prompt 中。
-
