@@ -64,9 +64,25 @@ src/main/java/io/github/jiangzhibin/agentlearning/tool/
   ToolEvidence.java
 ```
 
-当前支持 OpenAI-compatible 非流式文本调用，把模型输出解析为 `summary / evidence / nextActions / riskLevel` 结构化报告，并定义只读工具调用的本地 Java 契约。
+Day 09 已新增本地只读代码搜索工具：
 
-仍不包含真实工具实现、MCP Client、RAG、Memory、Agent Loop 或 CLI / REST 入口。
+```text
+src/main/java/io/github/jiangzhibin/agentlearning/tool/
+  LocalCodeSearchTool.java
+```
+
+Day 10 已新增本地只读 Git 历史和配置读取工具：
+
+```text
+src/main/java/io/github/jiangzhibin/agentlearning/tool/
+  LocalGitHistoryTool.java
+  LocalConfigReadTool.java
+  SensitiveValueRedactor.java
+```
+
+当前支持 OpenAI-compatible 非流式文本调用，把模型输出解析为 `summary / evidence / nextActions / riskLevel` 结构化报告，并定义本地只读工具调用契约。现有本地工具包括 `search_code`、`git_history` 和 `read_config`，三者都返回统一 `ToolResult`。
+
+仍不包含 MCP Client、RAG、Memory、Agent Loop 或 CLI / REST 入口。
 
 ## 本地验证
 

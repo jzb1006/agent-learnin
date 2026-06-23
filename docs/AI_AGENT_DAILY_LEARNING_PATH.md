@@ -149,7 +149,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：按关键词搜索目标 Java 项目源码
   - 验收标准：输入关键词能返回相关文件路径和片段，且不能越过允许根目录
 
-- [ ] Day 10：实现本地只读工具 `git_history` 和 `read_config`
+- [x] Day 10：实现本地只读工具 `git_history` 和 `read_config`
   - 学习重点：Git 查询、配置读取、敏感值脱敏、只读边界
   - 实践产出：查询提交历史、读取配置并脱敏输出
   - 验收标准：不会泄露 token、secret、password，所有工具返回统一 `ToolResult`
@@ -368,12 +368,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 07：实现结构化输出 | 已完成 | 实现 `DiagnosticReport` 结构化报告契约、JSON 解析和字段校验，明确结构化输出只能保证形状可解析，真实结论仍需依赖工具、RAG 来源和 trace 证据校验。 |
 | 2026-06-23 | Day 08：理解 Tool Calling 的执行模型 | 已完成 | 建立 `TroubleshootingTool`、`ToolDefinition`、`ToolCall`、`ToolResult` 等只读工具调用契约，明确模型负责选工具、生成参数和消费 observation，程序负责校验、权限、执行和结构化返回，并理解失败 observation 与幂等只读工具边界。 |
 | 2026-06-23 | Day 09：实现本地只读工具 `search_code` | 已完成 | 实现 `LocalCodeSearchTool` 本地只读源码搜索工具，明确关键词输入限制、允许根目录、符号链接越权风险、结果裁剪和“未找到” observation 的边界，并通过单元测试覆盖正常搜索、参数错误、结果上限和路径越界防护。 |
+| 2026-06-23 | Day 10：实现本地只读工具 `git_history` 和 `read_config` | 已完成 | 实现 `LocalGitHistoryTool` 和 `LocalConfigReadTool`，明确 Git 历史与配置读取都必须受 allowedRoot 约束，敏感值要在进入模型上下文前脱敏，并通过测试覆盖提交查询、配置读取、路径越界、符号链接和绝对路径防护。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：9
-- 当前建议节点：Day 10
+- 已学习：10
+- 当前建议节点：Day 11
 
 ## 后续标记方式
 
