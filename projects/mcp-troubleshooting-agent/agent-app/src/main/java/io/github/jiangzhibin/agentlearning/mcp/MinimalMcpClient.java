@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * 最小 MCP Client。
  * <p>
- * 该客户端只覆盖 Day 12 的验收闭环：通过 stdio 启动 MCP Server、发现工具并调用无参文本工具。
+ * 该客户端覆盖本地 stdio MCP Server 的工具发现和文本工具调用闭环。
  *
  * @author jiangzhibin
  * @since 2026-06-23 18:33:02
@@ -34,10 +34,25 @@ public final class MinimalMcpClient implements AutoCloseable {
      * @param args 服务端启动参数
      */
     public MinimalMcpClient(String command, String... args) {
+        this(command, Map.of(), args);
+    }
+
+    /**
+     * 创建最小 MCP Client。
+     *
+     * @param command 服务端启动命令
+     * @param environment 服务端进程环境变量
+     * @param args 服务端启动参数
+     */
+    public MinimalMcpClient(String command, Map<String, String> environment, String... args) {
         if (command == null || command.isBlank()) {
             throw new IllegalArgumentException("MCP Server 启动命令不能为空");
         }
+        if (environment == null) {
+            throw new IllegalArgumentException("MCP Server 环境变量不能为空");
+        }
         var parameters = ServerParameters.builder(command)
+            .env(environment)
             .args(Arrays.asList(args))
             .build();
         var transport = new StdioClientTransport(parameters, McpJsonDefaults.getMapper());
@@ -70,12 +85,26 @@ public final class MinimalMcpClient implements AutoCloseable {
      * @return 第一段文本内容
      */
     public String callTextTool(String toolName) {
+        return callTextTool(toolName, Map.of());
+    }
+
+    /**
+     * 调用带参数文本工具。
+     *
+     * @param toolName 工具名称
+     * @param arguments 工具参数
+     * @return 第一段文本内容
+     */
+    public String callTextTool(String toolName, Map<String, Object> arguments) {
         if (toolName == null || toolName.isBlank()) {
             throw new IllegalArgumentException("工具名称不能为空");
         }
+        if (arguments == null) {
+            throw new IllegalArgumentException("工具参数不能为空");
+        }
         var result = client.callTool(McpSchema.CallToolRequest.builder()
             .name(toolName)
-            .arguments(Map.of())
+            .arguments(arguments)
             .build());
         if (Boolean.TRUE.equals(result.isError())) {
             throw new IllegalStateException("MCP 工具调用失败：" + firstText(result));

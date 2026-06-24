@@ -7,6 +7,7 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,7 @@ import java.util.Map;
 public final class MinimalMcpServerApplication {
 
     static final String TOOL_NAME = "ping";
+    private static final String SEARCH_CODE_ROOT_ENV = "MCP_SEARCH_CODE_ROOT";
     private static final String SERVER_NAME = "mcp-troubleshooting-agent";
     private static final String SERVER_VERSION = "0.1.0";
 
@@ -42,11 +44,15 @@ public final class MinimalMcpServerApplication {
      * @return 同步 MCP Server
      */
     static McpSyncServer createServer() {
+        return createServer(resolveSearchCodeRoot());
+    }
+
+    private static McpSyncServer createServer(Path searchCodeRoot) {
         var transportProvider = new StdioServerTransportProvider(McpJsonDefaults.getMapper());
         return McpServer.sync(transportProvider)
             .serverInfo(new McpSchema.Implementation(SERVER_NAME, SERVER_VERSION))
             .capabilities(McpSchema.ServerCapabilities.builder().tools(false).build())
-            .tools(createPingToolSpecification())
+            .tools(createPingToolSpecification(), createSearchCodeToolSpecification(searchCodeRoot))
             .build();
     }
 
@@ -60,6 +66,16 @@ public final class MinimalMcpServerApplication {
             .tool(createPingTool())
             .callHandler(createPingHandler())
             .build();
+    }
+
+    /**
+     * 创建 search_code 工具规格，供单元测试验证处理器行为。
+     *
+     * @param allowedRoot 允许搜索的根目录
+     * @return search_code 工具规格
+     */
+    static McpServerFeatures.SyncToolSpecification createSearchCodeToolSpecification(Path allowedRoot) {
+        return new SearchCodeMcpTool(allowedRoot).specification();
     }
 
     private static McpSchema.Tool createPingTool() {
@@ -103,5 +119,13 @@ public final class MinimalMcpServerApplication {
                 .isError(false)
                 .build();
         };
+    }
+
+    private static Path resolveSearchCodeRoot() {
+        var configuredRoot = System.getenv(SEARCH_CODE_ROOT_ENV);
+        if (configuredRoot == null || configuredRoot.isBlank()) {
+            return Path.of(".");
+        }
+        return Path.of(configuredRoot);
     }
 }
