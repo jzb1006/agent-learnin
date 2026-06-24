@@ -80,9 +80,18 @@ src/main/java/io/github/jiangzhibin/agentlearning/tool/
   SensitiveValueRedactor.java
 ```
 
+Day 12 已新增最小 MCP Client：
+
+```text
+src/main/java/io/github/jiangzhibin/agentlearning/mcp/
+  MinimalMcpClient.java
+```
+
 当前支持 OpenAI-compatible 非流式文本调用，把模型输出解析为 `summary / evidence / nextActions / riskLevel` 结构化报告，并定义本地只读工具调用契约。现有本地工具包括 `search_code`、`git_history` 和 `read_config`，三者都返回统一 `ToolResult`。
 
-仍不包含 MCP Client、RAG、Memory、Agent Loop 或 CLI / REST 入口。
+Day 12 之后，`agent-app` 可以通过 stdio MCP Client 连接 `mcp-server`，发现并调用 `ping` 工具。
+
+仍不包含 RAG、Memory、Agent Loop 或 CLI / REST 入口。
 
 ## 本地验证
 
@@ -90,6 +99,13 @@ src/main/java/io/github/jiangzhibin/agentlearning/tool/
 
 ```bash
 mvn -f "/Users/jiangzhibin/workspace/agent-learning/projects/mcp-troubleshooting-agent/agent-app/pom.xml" test
+```
+
+Day 12 的 MCP stdio 集成测试需要先打包 `mcp-server`：
+
+```bash
+mvn -f "/Users/jiangzhibin/workspace/agent-learning/projects/mcp-troubleshooting-agent/mcp-server/pom.xml" package
+mvn -f "/Users/jiangzhibin/workspace/agent-learning/projects/mcp-troubleshooting-agent/agent-app/pom.xml" test -Dtest=MinimalMcpClientTest
 ```
 
 真实 DeepSeek smoke test 需要显式启用：

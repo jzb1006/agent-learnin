@@ -26,5 +26,6 @@ mcp-troubleshooting-agent/
 
 - Day 05：补配置结构和运行入口草案。
 - Day 06-10：实现 LLM API、结构化输出和本地只读工具。
-- Day 11-20：把只读工具迁移为 MCP Tools，并补齐 Resources、Prompts、Roots 和协议测试。
+- Day 11-12：理解 MCP 角色，并搭建暴露 `ping` 的最小 stdio MCP Server。
+- Day 13-20：把只读工具迁移为 MCP Tools，并补齐 Resources、Prompts、Roots 和协议测试。
 - Day 21 以后：接入 RAG、Memory、上下文压缩、Agent 编排、观测和评测。

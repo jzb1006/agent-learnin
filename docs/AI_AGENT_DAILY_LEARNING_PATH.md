@@ -161,7 +161,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：画出 Agent 到 MCP Server 的调用链
   - 验收标准：能解释为什么工具不直接写进 Agent
 
-- [ ] Day 12：搭建最小 MCP Server
+- [x] Day 12：搭建最小 MCP Server
   - 学习重点：工具注册、协议边界、启动方式
   - 实践产出：MCP Server 暴露一个 `ping` 工具
   - 验收标准：Agent 侧能发现并调用 `ping`
@@ -370,12 +370,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 09：实现本地只读工具 `search_code` | 已完成 | 实现 `LocalCodeSearchTool` 本地只读源码搜索工具，明确关键词输入限制、允许根目录、符号链接越权风险、结果裁剪和“未找到” observation 的边界，并通过单元测试覆盖正常搜索、参数错误、结果上限和路径越界防护。 |
 | 2026-06-23 | Day 10：实现本地只读工具 `git_history` 和 `read_config` | 已完成 | 实现 `LocalGitHistoryTool` 和 `LocalConfigReadTool`，明确 Git 历史与配置读取都必须受 allowedRoot 约束，敏感值要在进入模型上下文前脱敏，并通过测试覆盖提交查询、配置读取、路径越界、符号链接和绝对路径防护。 |
 | 2026-06-23 | Day 11：理解 MCP 的角色 | 已完成 | 明确 MCP Host、MCP Client、MCP Server、`tools/list`、`tools/call` 和 transport 的职责边界，确认 `agent-app` 后续通过 MCP Client 连接 `mcp-server`，工具能力不再长期直接写进 Agent，Day 12 本地最小闭环优先采用 stdio。 |
+| 2026-06-24 | Day 12：搭建最小 MCP Server | 已完成 | 搭建 stdio MCP Server，暴露只读幂等的 `ping` 工具，并通过 `MinimalMcpClientTest` 验证 `agent-app` 能完成 initialize、`tools/list` 和 `tools/call` 调用链路，明确 stdout 是 JSON-RPC 协议通道，普通日志应写 stderr。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：11
-- 当前建议节点：Day 12
+- 已学习：12
+- 当前建议节点：Day 13
 
 ## 后续标记方式
 

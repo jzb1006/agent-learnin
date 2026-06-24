@@ -24,3 +24,43 @@
 - 稳定只读上下文：建模为 Resource。
 - 可复用交互流程：建模为 Prompt。
 - 访问目录边界：建模为 Roots 和服务端校验。
+
+## 当前代码
+
+Day 12 已新增最小 MCP Server：
+
+```text
+src/main/java/io/github/jiangzhibin/agentlearning/mcpserver/
+  MinimalMcpServerApplication.java
+```
+
+当前只暴露一个 `ping` 工具：
+
+- 无参数。
+- 返回文本 `pong`。
+- 标记为只读、幂等、非破坏性。
+- 通过 stdio transport 提供 MCP 协议能力。
+
+Day 13 之后再把 `search_code`、`git_history`、`read_config` 逐步迁移进来。
+
+## 本地验证
+
+打包可执行 MCP Server JAR：
+
+```bash
+mvn -f "/Users/jiangzhibin/workspace/agent-learning/projects/mcp-troubleshooting-agent/mcp-server/pom.xml" package
+```
+
+运行 `mcp-server` 单元测试：
+
+```bash
+mvn -f "/Users/jiangzhibin/workspace/agent-learning/projects/mcp-troubleshooting-agent/mcp-server/pom.xml" test
+```
+
+Agent 侧 stdio 调用验证：
+
+```bash
+mvn -f "/Users/jiangzhibin/workspace/agent-learning/projects/mcp-troubleshooting-agent/agent-app/pom.xml" test -Dtest=MinimalMcpClientTest
+```
+
+注意：stdio MCP Server 的 stdout 只能写 MCP 协议消息，普通日志必须写 stderr 或使用 SDK 日志能力。
