@@ -171,7 +171,7 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
   - 实践产出：通过 MCP 调用代码搜索
   - 验收标准：Agent 不再直接依赖本地代码搜索实现
 
-- [ ] Day 14：把 `git_history` 和 `read_config` 接入 MCP
+- [x] Day 14：把 `git_history` 和 `read_config` 接入 MCP
   - 学习重点：多工具注册、工具命名、错误隔离
   - 实践产出：MCP Server 暴露三个只读工具
   - 验收标准：工具列表、参数 schema、返回值均可验证
@@ -372,12 +372,13 @@ RAG：先用 Spring AI 简单检索，后续再评估 embedding / vector store
 | 2026-06-23 | Day 11：理解 MCP 的角色 | 已完成 | 明确 MCP Host、MCP Client、MCP Server、`tools/list`、`tools/call` 和 transport 的职责边界，确认 `agent-app` 后续通过 MCP Client 连接 `mcp-server`，工具能力不再长期直接写进 Agent，Day 12 本地最小闭环优先采用 stdio。 |
 | 2026-06-24 | Day 12：搭建最小 MCP Server | 已完成 | 搭建 stdio MCP Server，暴露只读幂等的 `ping` 工具，并通过 `MinimalMcpClientTest` 验证 `agent-app` 能完成 initialize、`tools/list` 和 `tools/call` 调用链路，明确 stdout 是 JSON-RPC 协议通道，普通日志应写 stderr。 |
 | 2026-06-24 | Day 13：把 `search_code` 接入 MCP | 已完成 | 将代码搜索能力迁移为 MCP Tool，明确 `keyword` 是调用参数、允许根目录是 Server 运行配置，`agent-app` 通过 MCP Client 调用并消费结果，`mcp-server` 负责工具注册、路径边界和 JSON 文本结果序列化。 |
+| 2026-06-24 | Day 14：把 `git_history` 和 `read_config` 接入 MCP | 已完成 | 将 Git 历史和配置读取接入 MCP Server，形成 `search_code`、`git_history`、`read_config` 三个只读工具集合，明确多工具 schema、独立根目录配置、错误隔离、配置脱敏和越权防护，并通过真实 stdio MCP Client 验证工具发现和调用。 |
 
 ## 当前进度
 
 - 总节点数：45
-- 已学习：13
-- 当前建议节点：Day 14
+- 已学习：14
+- 当前建议节点：Day 15
 
 ## 后续标记方式
 

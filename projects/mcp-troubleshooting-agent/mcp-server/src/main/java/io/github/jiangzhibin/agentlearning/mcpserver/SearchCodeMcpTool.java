@@ -1,6 +1,5 @@
 package io.github.jiangzhibin.agentlearning.mcpserver;
 
-import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -27,9 +26,6 @@ final class SearchCodeMcpTool {
     private static final String KEYWORD_ARGUMENT = "keyword";
     private static final int MAX_KEYWORD_LENGTH = 128;
     private static final int MAX_RESULTS = 5;
-    private static final String SUCCESS = "SUCCESS";
-    private static final String INVALID_ARGUMENTS = "INVALID_ARGUMENTS";
-    private static final String EXECUTION_FAILED = "EXECUTION_FAILED";
 
     private final Path allowedRoot;
 
@@ -92,25 +88,25 @@ final class SearchCodeMcpTool {
 
     private McpSchema.CallToolResult handle(McpSchema.CallToolRequest request) {
         if (!TOOL_NAME.equals(request.name())) {
-            return failure(INVALID_ARGUMENTS, "工具名称必须是 search_code");
+            return McpToolResults.failure(McpToolResults.INVALID_ARGUMENTS, "工具名称必须是 search_code");
         }
         var arguments = request.arguments() == null ? Map.<String, Object>of() : request.arguments();
         if (hasUnknownArguments(arguments)) {
-            return failure(INVALID_ARGUMENTS, "search_code 只支持 keyword 参数");
+            return McpToolResults.failure(McpToolResults.INVALID_ARGUMENTS, "search_code 只支持 keyword 参数");
         }
         var keywordValue = arguments.get(KEYWORD_ARGUMENT);
         if (!(keywordValue instanceof String keyword) || keyword.isBlank()) {
-            return failure(INVALID_ARGUMENTS, "keyword 不能为空");
+            return McpToolResults.failure(McpToolResults.INVALID_ARGUMENTS, "keyword 不能为空");
         }
         if (keyword.strip().length() > MAX_KEYWORD_LENGTH) {
-            return failure(INVALID_ARGUMENTS, "keyword 长度不能超过 " + MAX_KEYWORD_LENGTH + " 个字符");
+            return McpToolResults.failure(McpToolResults.INVALID_ARGUMENTS, "keyword 长度不能超过 " + MAX_KEYWORD_LENGTH + " 个字符");
         }
 
         try {
             var normalizedKeyword = keyword.strip();
             var evidence = search(normalizedKeyword);
             if (evidence.isEmpty()) {
-                return success(
+                return McpToolResults.success(
                     "未找到匹配片段",
                     List.of(Map.of("source", TOOL_NAME, "content", "未找到匹配片段：" + normalizedKeyword))
                 );
@@ -118,9 +114,9 @@ final class SearchCodeMcpTool {
             var summary = evidence.size() == MAX_RESULTS
                 ? "找到匹配片段，返回前 " + MAX_RESULTS + " 个"
                 : "找到 " + evidence.size() + " 个匹配片段";
-            return success(summary, evidence);
+            return McpToolResults.success(summary, evidence);
         } catch (IOException exception) {
-            return failure(EXECUTION_FAILED, "代码搜索失败：" + exception.getMessage());
+            return McpToolResults.failure(McpToolResults.EXECUTION_FAILED, "代码搜索失败：" + exception.getMessage());
         }
     }
 
@@ -177,35 +173,4 @@ final class SearchCodeMcpTool {
         return allowedRoot.relativize(file).toString() + ":" + lineNumber;
     }
 
-    private McpSchema.CallToolResult success(String summary, List<Map<String, String>> evidence) {
-        return result(false, Map.of(
-            "status", SUCCESS,
-            "summary", summary,
-            "evidence", evidence
-        ));
-    }
-
-    private McpSchema.CallToolResult failure(String errorCode, String errorMessage) {
-        return result(true, Map.of(
-            "status", errorCode,
-            "summary", errorMessage,
-            "evidence", List.of(),
-            "errorCode", errorCode,
-            "errorMessage", errorMessage
-        ));
-    }
-
-    private McpSchema.CallToolResult result(boolean isError, Map<String, Object> payload) {
-        try {
-            return McpSchema.CallToolResult.builder()
-                .addTextContent(McpJsonDefaults.getMapper().writeValueAsString(payload))
-                .isError(isError)
-                .build();
-        } catch (IOException exception) {
-            return McpSchema.CallToolResult.builder()
-                .addTextContent("{\"status\":\"EXECUTION_FAILED\",\"summary\":\"工具结果序列化失败\"}")
-                .isError(true)
-                .build();
-        }
-    }
 }

@@ -70,6 +70,37 @@ class MinimalMcpServerApplicationTest {
     }
 
     @Test
+    void shouldRegisterGitHistoryAndReadConfigTools() {
+        var server = MinimalMcpServerApplication.createServer();
+
+        var tools = server.listTools();
+
+        assertTrue(tools.stream().anyMatch(tool -> "git_history".equals(tool.name())));
+        assertTrue(tools.stream().anyMatch(tool -> "read_config".equals(tool.name())));
+        var gitHistory = tools.stream()
+            .filter(tool -> "git_history".equals(tool.name()))
+            .findFirst()
+            .orElseThrow();
+        var readConfig = tools.stream()
+            .filter(tool -> "read_config".equals(tool.name()))
+            .findFirst()
+            .orElseThrow();
+        assertEquals("object", gitHistory.inputSchema().get("type"));
+        assertEquals(Boolean.FALSE, gitHistory.inputSchema().get("additionalProperties"));
+        assertTrue(((Map<?, ?>) gitHistory.inputSchema().get("properties")).containsKey("keyword"));
+        assertTrue(((Map<?, ?>) gitHistory.inputSchema().get("properties")).containsKey("maxResults"));
+        assertEquals(Boolean.TRUE, gitHistory.annotations().readOnlyHint());
+        assertEquals(Boolean.TRUE, gitHistory.annotations().idempotentHint());
+        assertEquals(Boolean.FALSE, gitHistory.annotations().destructiveHint());
+        assertEquals("object", readConfig.inputSchema().get("type"));
+        assertEquals(Boolean.FALSE, readConfig.inputSchema().get("additionalProperties"));
+        assertTrue(((Map<?, ?>) readConfig.inputSchema().get("properties")).containsKey("path"));
+        assertEquals(Boolean.TRUE, readConfig.annotations().readOnlyHint());
+        assertEquals(Boolean.TRUE, readConfig.annotations().idempotentHint());
+        assertEquals(Boolean.FALSE, readConfig.annotations().destructiveHint());
+    }
+
+    @Test
     void shouldReturnSearchCodeResultAsJsonText() throws IOException {
         var sourceFile = writeFile(
             tempDir.resolve("src/main/java/com/example/App.java"),
@@ -107,6 +138,40 @@ class MinimalMcpServerApplicationTest {
         var text = ((McpSchema.TextContent) result.content().getFirst()).text();
         assertTrue(text.contains("\"status\":\"INVALID_ARGUMENTS\""));
         assertTrue(text.contains("keyword"));
+    }
+
+    @Test
+    void shouldReturnMcpErrorWhenGitHistoryMaxResultsIsInvalid() throws IOException {
+        var specification = MinimalMcpServerApplication.createGitHistoryToolSpecification(tempDir);
+
+        var result = specification.callHandler().apply(null, McpSchema.CallToolRequest.builder()
+            .name("git_history")
+            .arguments(Map.of("maxResults", 0))
+            .build());
+
+        assertTrue(result.isError());
+        var text = ((McpSchema.TextContent) result.content().getFirst()).text();
+        assertTrue(text.contains("\"status\":\"INVALID_ARGUMENTS\""));
+        assertTrue(text.contains("maxResults"));
+    }
+
+    @Test
+    void shouldReturnMcpErrorWhenReadConfigPathEscapesAllowedRoot() throws IOException {
+        writeFile(tempDir.resolve("outside.env"), "TOKEN=outside-secret");
+        var projectRoot = tempDir.resolve("project");
+        Files.createDirectories(projectRoot);
+        var specification = MinimalMcpServerApplication.createReadConfigToolSpecification(projectRoot);
+
+        var result = specification.callHandler().apply(null, McpSchema.CallToolRequest.builder()
+            .name("read_config")
+            .arguments(Map.of("path", "../outside.env"))
+            .build());
+
+        assertTrue(result.isError());
+        var text = ((McpSchema.TextContent) result.content().getFirst()).text();
+        assertTrue(text.contains("\"status\":\"PERMISSION_DENIED\""));
+        assertTrue(text.contains("允许根目录"));
+        assertFalse(text.contains("outside-secret"));
     }
 
     private Path writeFile(Path path, String content) throws IOException {
