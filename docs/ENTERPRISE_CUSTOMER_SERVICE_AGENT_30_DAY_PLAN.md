@@ -88,6 +88,13 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | 阶段 5 | Day 21-25 | MCP、Memory、安全与审批 | MCP Server/Client + 审批边界 + 审批调试 |
 | 阶段 6 | Day 26-30 | Agent 编排、观测、评测与运行手册 | 可观测、可评测、可本地调试系统 |
 
+## 当前进度
+
+| Day | 状态 | 完成日期 | 产物 |
+| --- | --- | --- | --- |
+| Day 01 | 已完成 | 2026-06-26 | [从 Week10 提炼 Java 项目范围](day-01-week10-java-scope.md) |
+| Day 02 | 未开始 | - | 创建多模块项目骨架 |
+
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
 ### Day 01：从 Week10 提炼 Java 项目范围
