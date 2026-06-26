@@ -2,145 +2,252 @@
 
 ## 项目定位
 
-这是一个面向 Java 后端开发者的 AI Agent 工程学习项目。
+这是一个面向 Java 后端开发者的企业级 AI Agent 工程项目。
 
-学习者当前按新手路径学习 AI Agent，需要 AI 以“教授 + 助教 + 代码审查者”的方式，由浅入深带学，并通过构建一个 MCP 优先的 Java 后端排障 Agent 串联完整能力链路。
+当前主线已经从“每日学习路线 + MCP 排障 Agent”切换为：
 
-目标不是快速生成 Demo，而是让学习者逐步理解并实现：
+```text
+企业级智能客服与订单协同 Agent 平台
+```
 
-- LLM API
-- Prompt / Instruction Engineering
-- Tool Calling
-- MCP Tools / Resources / Prompts / Roots
-- RAG
-- Memory
-- Context Compression
-- Agent 编排
-- 权限与安全
-- Observability / Evals / Testing
-- 部署、性能和 Human-in-the-loop
+业务参考优先使用：
+
+```text
+<AI_ENGINEER_TRAINING_ROOT>/week10
+```
+
+目标不是快速生成 Demo，而是用 Spring Boot / Spring AI 逐步落地一套可维护、可观测、可扩展的企业级业务 Agent 平台。
 
 ## 新窗口启动规则
 
-每次新窗口开始学习前，AI 必须先阅读：
+每次新窗口开始工作前，AI 必须先阅读：
 
-1. `docs/AI_AGENT_DAILY_LEARNING_PATH.md`
-2. `docs/AI_AGENT_TEACHING_GUIDE.md`
-3. `README.md`
+1. `README.md`
+2. `docs/ENTERPRISE_CUSTOMER_SERVICE_AGENT_30_DAY_PLAN.md`
+3. `docs/week10-enterprise-customer-service-agent-blueprint.md`
+4. `docs/enterprise-spring-boot-ai-agent-ecosystem.md`
 
-如果用户说“开始 Day XX”，按对应 Day 的目标推进。
+如果 `.local/project-memory.md` 存在，AI 还必须读取它，用于解析本机参考路径、远程开发服务器和 SSH 连接占位符。该文件是本地私有记忆，已被 `.gitignore` 忽略，禁止提交、推送或把其中真实值复制到公开文档。
 
-如果用户没有指定 Day，先查看 `docs/AI_AGENT_DAILY_LEARNING_PATH.md` 中的“当前进度”，从“当前建议节点”开始。
+如需参考原始业务样例，再读取：
 
-## 教学目标
+1. `<AI_ENGINEER_TRAINING_ROOT>/week10/README.md`
+2. `<AI_ENGINEER_TRAINING_ROOT>/week10/docs/architecture_design.md`
+3. `<AI_ENGINEER_TRAINING_ROOT>/week10/docs/api_specification.md`
+4. `<AI_ENGINEER_TRAINING_ROOT>/week10/work_v3/app.py`
+5. `<AI_ENGINEER_TRAINING_ROOT>/week10/work_v3/graph.py`
+6. `<AI_ENGINEER_TRAINING_ROOT>/week10/work_v3/tools.py`
+7. `<AI_ENGINEER_TRAINING_ROOT>/week10/work_v3/mcp_server.py`
 
-AI 需要扮演：
-
-- 教授：用新手能理解的方式讲清概念。
-- 助教：带学习者拆任务、写代码、运行命令、看报错。
-- 代码审查者：指出设计问题、坏味道、边界风险和测试缺口。
-- 考官：只在当天内容直接关系到 Agent 核心能力、边界或风险时提出复习问题；数量按需控制，非 Agent 核心章节可以省略。
-- 项目导师：保证每个知识点都落到 `projects/mcp-troubleshooting-agent`。
-
-## 每日带学流程
-
-每个 Day 按以下顺序进行：
-
-1. 今日目标
-2. 概念讲解
-3. 项目映射
-4. 实操任务
-5. 运行验证
-6. 复盘提问
-7. 知识沉淀
-8. 更新学习进度
-
-每次只推进一个核心节点，不要一次跨多个 Day。
-
-## 知识沉淀要求
-
-每天结束时，根据当天内容沉淀到 `docs/knowledge`：
+旧每日学习路线已经归档到分支：
 
 ```text
-docs/knowledge/
-  concepts/        # 概念卡片
-  mindmaps/        # Mermaid 脑图
-  decisions/       # 技术决策记录
-  review-notes/    # 每周复盘
+codex/archive-daily-learning-route
 ```
 
-复杂主题必须优先生成 Mermaid 脑图，例如：
+主分支不再按 `Day XX` 自动推进。
 
-- MCP 调用链
-- RAG 检索链路
-- Memory 分类
-- Agent Loop
-- 权限审批流程
+如果用户说“开始 Day XX”，默认按 `docs/ENTERPRISE_CUSTOMER_SERVICE_AGENT_30_DAY_PLAN.md` 中新的 30 天计划推进，而不是旧每日学习路线。
 
-## 学习进度更新规则
+## 项目目标
 
-学习者说“Day XX 学完了”时，AI 需要先检查：
+新主线要逐步实现：
 
-- 今日产物是否存在
-- 验收标准是否满足
-- 是否完成知识卡片或脑图
-- 如当天设置了 Agent 核心复习问题，学习者是否能回答；如未设置复习问题，不以此作为完成门槛
+- 智能客服对话
+- 意图识别与路由
+- 订单查询
+- FAQ / 政策 / 产品知识 RAG
+- 知识库管理
+- MCP Tools / Resources / Prompts
+- 多租户隔离
+- Memory / Context Compression
+- Agent 编排
+- 多 Agent 扩展
+- 高风险操作审批
+- 安全脱敏与 Prompt Injection 防护
+- trace、metrics、eval、日志审计
+- Docker Compose / 生产化部署
 
-满足后再更新 `docs/AI_AGENT_DAILY_LEARNING_PATH.md`：
-
-- 将对应 checkbox 改为 `[x]`
-- 在“学习记录”追加日期、节点、总结
-- 更新“当前进度”
-
-不要在没有验收证据时标记完成。
-
-## 工程边界
-
-第一阶段只做只读排障 Agent。
-
-允许：
-
-- 查代码
-- 查配置
-- 查 Git 历史
-- 查文档
-- 查本地日志样本
-- 生成诊断报告
-
-禁止默认执行：
-
-- 重启服务
-- 修改配置
-- 写数据库
-- 触发部署
-- 调生产 API
-- 删除文件或批量移动文件
-
-高风险动作必须先明确说明影响范围，并等待用户确认。
-
-## 技术路线
+## 默认技术路线
 
 主线技术栈：
 
 - Spring Boot
 - Spring AI
 - Spring AI MCP / MCP Java SDK
+- Spring Security
+- Spring Data JDBC / JPA
+- PostgreSQL / pgvector
+- Redis
+- Vite / React / TypeScript / Ant Design
+- Micrometer / OpenTelemetry
+- Prometheus / Grafana
+- Docker / Docker Compose
 
-对照学习框架：
+对照框架：
 
+- Spring AI Alibaba
 - LangChain4j
 - Google ADK Java
-- Semantic Kernel Java
-- Quarkus LangChain4j
 
-对照框架只用于理解差异，不参与 MVP 实现，除非用户明确要求。
+对照框架只用于理解差异和借鉴设计，不应在 MVP 阶段同时引入多个 Agent 框架。
+
+## 推荐项目结构
+
+主项目建议落在：
+
+```text
+projects/enterprise-customer-service-agent/
+  customer-agent-app/
+  customer-mcp-server/
+  customer-domain/
+  customer-admin-web/
+  knowledge-base/
+  evals/
+  traces/
+  deploy/
+```
+
+旧排障 Agent 项目已从主分支移除，并保留在 `codex/archive-daily-learning-route` 归档分支中。
+
+## Web 调试台边界
+
+`customer-admin-web` 是 P0 的本地 Agent 调试台，不是后期才做的完整管理后台。
+
+固定技术栈：
+
+```text
+Vite
+React
+TypeScript
+Ant Design
+TanStack Query
+```
+
+第一版必须围绕开发调试体验：
+
+- 对话测试
+- 结构化响应查看
+- 工具调用链查看
+- RAG 来源查看
+- 订单接口调试
+- 审批流程模拟
+- health / runtime 状态查看
+
+不要在 MVP 阶段扩展成完整运营后台、权限后台、租户管理后台或 BI 面板。
+
+## 监控台边界
+
+运行态监控台使用 Prometheus + Grafana，不在 `customer-admin-web` 内自研完整 dashboard。
+
+职责边界：
+
+| 界面 | 职责 |
+| --- | --- |
+| `customer-admin-web` | 面向开发调试，查看 Agent 决策、工具调用、RAG 来源、审批模拟 |
+| Grafana Dashboard | 面向运行态监控，查看 metrics、latency、error rate、工具失败率、RAG 命中率、资源状态 |
+
+第一版 Grafana Dashboard 至少覆盖：
+
+- API 请求量、P95/P99 延迟、错误率。
+- LLM 调用次数、耗时、失败率、token 消耗。
+- 工具调用次数、失败率、耗时。
+- RAG 检索次数、命中率、检索耗时。
+- 审批请求数和拒绝率。
+- PostgreSQL、Redis、JVM、连接池和线程池指标。
+
+`customer-admin-web` 可以提供 Grafana 链接或关键指标摘要，但不要复制 Grafana 的完整监控能力。
+
+## 默认部署环境
+
+项目部署和中间件部署默认落在同一台服务器：
+
+```text
+主机：<DEV_SERVER_HOST>
+用户：<DEV_SERVER_USER>
+本地 SSH 证书：<SSH_IDENTITY_FILE>
+连接示例：ssh -i <SSH_IDENTITY_FILE> <DEV_SERVER_USER>@<DEV_SERVER_HOST>
+```
+
+默认纳入部署设计的组件：
+
+- Spring Boot Agent 服务
+- MCP Server
+- PostgreSQL / pgvector
+- Redis
+- Prometheus
+- Grafana
+- OpenTelemetry Collector（如后续启用）
+
+远程部署、远程容器重启、数据库结构变更、中间件配置修改、生产 API 调用都必须视为高风险操作。没有用户明确确认时，只允许写部署文档、生成配置草案或执行只读检查。
+
+数据库变更规则：
+
+- 不使用 Flyway / Liquibase 等数据库迁移框架。
+- 不使用 Hibernate `ddl-auto=update` 自动改表；开发期也应使用 `validate` 或 `none`。
+- DDL 必须写入仓库中的 SQL 脚本，经过确认后人工执行。
+- 执行远程 DDL 前必须说明目标库、脚本、影响表、回滚或补救方式。
+- 执行后必须记录脚本名、执行时间、执行结果和验证命令。
+
+## 工程边界
+
+第一阶段只做低风险业务闭环：
+
+允许：
+
+- 查询订单
+- 查询 FAQ / 政策 / 产品知识
+- 生成客服回复
+- 记录 trace
+- 记录未命中问题
+- 生成人工转接建议
+
+禁止默认执行：
+
+- 真实退款
+- 真实取消订单
+- 真实改签
+- 写生产数据库
+- 调生产 API
+- 删除知识库或订单数据
+- 绕过人工审批执行高风险工具
+
+高风险动作必须显式说明影响范围，并等待用户确认。
+
+## 阶段推进规则
+
+每个阶段都必须包含：
+
+1. 目标
+2. 业务场景
+3. 模块边界
+4. 接口设计
+5. 数据模型
+6. 安全边界
+7. 验证方式
+8. 测试用例
+
+不要只做概念学习。每个知识点都要落到企业客服订单平台中。
+
+## 参考迁移原则
+
+从 `ai-engineer-training/week10` 迁移时：
+
+- 参考业务能力和架构，不直接照搬 Python 代码。
+- FastAPI API 设计映射为 Spring MVC / WebFlux Controller。
+- LangGraph 路由映射为 Java 编排服务或 Spring AI Advisor / workflow。
+- FAISS 映射为 Spring AI VectorStore，优先 pgvector。
+- SQLite 订单库映射为 PostgreSQL。
+- Python MCP Server 映射为 Spring AI MCP / MCP Java SDK。
+- RedactionMiddleware 映射为 Spring Web Filter / HandlerInterceptor。
+- `/health` 指标映射为 Spring Boot Actuator + Micrometer。
 
 ## 代码与文档原则
 
-- KISS：先实现最小闭环。
-- YAGNI：不提前设计复杂多 Agent 系统。
-- DRY：工具调用、模型调用、日志记录要统一封装。
-- SOLID：工具能力与 Agent 编排解耦，避免业务逻辑写死在 Prompt 中。
+- KISS：先实现一个客服订单最小闭环。
+- YAGNI：不要提前实现复杂多 Agent、全量后台、真实支付退款。
+- DRY：模型调用、工具调用、权限检查、脱敏、trace 必须统一封装。
+- SOLID：业务服务、Agent 编排、工具实现、MCP 暴露、安全治理必须分层。
 
 所有代码变更都必须能解释：
 
@@ -154,13 +261,3 @@ docs/knowledge/
 默认使用简体中文。
 
 回答要结论先行，解释清楚但避免冗余。
-
-## 推荐启动语
-
-学习者可以直接说：
-
-```text
-开始 Day 01
-```
-
-AI 应按教学路线开始第一节课，而不是直接写完整项目。
