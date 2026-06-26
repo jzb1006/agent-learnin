@@ -73,10 +73,12 @@ public final class MinimalMcpServerApplication {
      * @return ping 工具规格
      */
     static McpServerFeatures.SyncToolSpecification createPingToolSpecification() {
-        return McpServerFeatures.SyncToolSpecification.builder()
-            .tool(createPingTool())
-            .callHandler(createPingHandler())
-            .build();
+        return readOnlyLowRisk(
+            McpServerFeatures.SyncToolSpecification.builder()
+                .tool(createPingTool())
+                .callHandler(createPingHandler())
+                .build()
+        );
     }
 
     /**
@@ -86,7 +88,7 @@ public final class MinimalMcpServerApplication {
      * @return search_code 工具规格
      */
     static McpServerFeatures.SyncToolSpecification createSearchCodeToolSpecification(Path allowedRoot) {
-        return new SearchCodeMcpTool(allowedRoot).specification();
+        return readOnlyLowRisk(new SearchCodeMcpTool(allowedRoot).specification());
     }
 
     /**
@@ -96,7 +98,7 @@ public final class MinimalMcpServerApplication {
      * @return git_history 工具规格
      */
     static McpServerFeatures.SyncToolSpecification createGitHistoryToolSpecification(Path allowedRoot) {
-        return new GitHistoryMcpTool(allowedRoot).specification();
+        return readOnlyLowRisk(new GitHistoryMcpTool(allowedRoot).specification());
     }
 
     /**
@@ -106,7 +108,13 @@ public final class MinimalMcpServerApplication {
      * @return read_config 工具规格
      */
     static McpServerFeatures.SyncToolSpecification createReadConfigToolSpecification(Path allowedRoot) {
-        return new ReadConfigMcpTool(allowedRoot).specification();
+        return readOnlyLowRisk(new ReadConfigMcpTool(allowedRoot).specification());
+    }
+
+    private static McpServerFeatures.SyncToolSpecification readOnlyLowRisk(
+        McpServerFeatures.SyncToolSpecification specification
+    ) {
+        return GuardedMcpToolSpecification.create(specification, McpToolMetadata.readOnlyLowRisk());
     }
 
     private static McpSchema.Tool createPingTool() {

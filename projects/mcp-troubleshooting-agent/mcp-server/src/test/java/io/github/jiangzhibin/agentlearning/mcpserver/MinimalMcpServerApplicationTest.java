@@ -1,5 +1,6 @@
 package io.github.jiangzhibin.agentlearning.mcpserver;
 
+import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -8,7 +9,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -98,6 +101,62 @@ class MinimalMcpServerApplicationTest {
         assertEquals(Boolean.TRUE, readConfig.annotations().readOnlyHint());
         assertEquals(Boolean.TRUE, readConfig.annotations().idempotentHint());
         assertEquals(Boolean.FALSE, readConfig.annotations().destructiveHint());
+    }
+
+    @Test
+    void shouldExposeRiskMetadataForRegisteredTools() {
+        var server = MinimalMcpServerApplication.createServer();
+
+        var tools = server.listTools();
+
+        for (var toolName : List.of("ping", "search_code", "git_history", "read_config")) {
+            var tool = tools.stream()
+                .filter(candidate -> toolName.equals(candidate.name()))
+                .findFirst()
+                .orElseThrow();
+            assertEquals("LOW", tool.meta().get("riskLevel"));
+            assertEquals(Boolean.TRUE, tool.meta().get("readOnly"));
+        }
+    }
+
+    @Test
+    void shouldRejectHighRiskToolBeforeExecutingHandler() {
+        var executed = new AtomicBoolean(false);
+        var highRiskSpecification = GuardedMcpToolSpecification.create(
+            McpServerFeatures.SyncToolSpecification.builder()
+                .tool(McpSchema.Tool.builder("restart_service")
+                    .description("重启服务。")
+                    .inputSchema(McpSchema.JsonSchema.builder()
+                        .type("object")
+                        .properties(Map.of())
+                        .required(List.of())
+                        .additionalProperties(false)
+                        .build())
+                    .annotations(McpSchema.ToolAnnotations.builder()
+                        .readOnlyHint(false)
+                        .destructiveHint(true)
+                        .idempotentHint(false)
+                        .openWorldHint(false)
+                        .build())
+                    .build())
+                .callHandler((exchange, request) -> {
+                    executed.set(true);
+                    return McpToolResults.success("不应执行", List.of());
+                })
+                .build(),
+            McpToolMetadata.highRiskWrite()
+        );
+
+        var result = highRiskSpecification.callHandler().apply(null, McpSchema.CallToolRequest.builder()
+            .name("restart_service")
+            .arguments(Map.of())
+            .build());
+
+        assertTrue(result.isError());
+        assertFalse(executed.get());
+        var text = ((McpSchema.TextContent) result.content().getFirst()).text();
+        assertTrue(text.contains("\"status\":\"PERMISSION_DENIED\""));
+        assertTrue(text.contains("高风险工具"));
     }
 
     @Test
