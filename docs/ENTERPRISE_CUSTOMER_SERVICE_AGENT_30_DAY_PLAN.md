@@ -22,6 +22,30 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 <AI_ENGINEER_TRAINING_ROOT>/week10
 ```
 
+## 技术栈版本基线
+
+截至 2026-06-26，这套课程使用的是当前行业通用的企业级 Java AI 应用栈，不属于落后路线。
+
+| 技术域 | 课程基线 | 为什么这样选 |
+| --- | --- | --- |
+| Java | Java 21 LTS 起步，预留 Java 25 LTS | Java 25 是最新 LTS；Java 21 仍是企业项目更稳的起步版本。 |
+| Spring Boot | 4.1.x 优先，3.5.x 保守回退 | 新项目优先现代基线；遇到 AI / MCP 依赖兼容问题时回退到更稳版本。 |
+| Spring AI | 2.0.x | 覆盖 ChatClient、Tool Calling、RAG、MCP、Observability 等主线能力。 |
+| MCP | Spring AI MCP，MCP Java SDK 由 BOM 管理 | 避免手工覆盖 SDK 造成兼容问题。 |
+| 数据库 | PostgreSQL 18.x + pgvector 0.8.x | 兼顾业务数据、向量检索、事务和审计。 |
+| Redis | Redis 8.x | 用于短期 Memory、Session、限流和缓存。 |
+| 前端 | Node.js 24 LTS + Vite 8.x + React 19.x + TypeScript 6.x | 面向本地调试台的主流现代前端栈；如生态兼容不足，TypeScript 回退 5.9.x。 |
+| UI / 请求 | Ant Design 6.x + TanStack Query v5 | 企业中后台 UI 和服务端状态管理的成熟组合；Ant Design 5.x 只作为兼容兜底。 |
+| 观测 | Actuator + Micrometer + OpenTelemetry + Prometheus + Grafana | 对齐企业运行态监控、trace 和指标体系。 |
+| 部署 | Docker Compose v2 | 适合学习阶段快速迭代；后续可扩展到 Kubernetes。 |
+
+版本使用规则：
+
+- Day 02 创建工程时再锁定具体 patch 版本。
+- 若 Spring Boot 4.1.x 与 Spring AI 2.0.x 或 MCP starter 出现兼容问题，优先回退 Spring Boot 3.5.x，保证学习主线可运行。
+- 不使用 Spring Boot 2.x、Java 8/11、新项目 Create React App、Hibernate `ddl-auto=update` 自动改表、手写向量库。
+- Spring AI Alibaba、LangChain4j、Google ADK Java 只作为对照框架，不作为 MVP 主依赖。
+
 ## 总体节奏
 
 ```text

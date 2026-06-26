@@ -24,6 +24,43 @@ Spring Boot + Spring AI + MCP 优先的企业客服订单 Agent
 
 Spring AI Alibaba、LangChain4j、Google ADK Java 作为对照和扩展，不在第一阶段同时引入，避免过早复杂化。
 
+## 行业通用性与版本基线
+
+截至 2026-06-26，这条技术路线没有走偏，也没有使用明显落后的技术。它的核心判断是：
+
+```text
+企业级 Java AI 应用 = Spring Boot 工程体系 + Spring AI 能力层 + 标准 MCP 工具边界 + 可观测和安全治理
+```
+
+推荐基线：
+
+| 能力层 | 推荐版本线 | 企业落地判断 |
+| --- | --- | --- |
+| JDK | Java 21 LTS 起步，Java 25 LTS 作为升级目标 | Java 25 是最新 LTS；Java 21 生态更稳，适合首版教学工程。 |
+| Spring Boot | 4.1.x 优先，3.5.x 保守回退 | 4.1.x 是新项目现代基线；3.5.x 适合作为依赖兼容兜底。 |
+| Spring AI | 2.0.x | 当前 Java AI 主线框架之一，覆盖 ChatClient、Tool Calling、RAG、MCP、Observability。 |
+| MCP | Spring AI MCP + MCP Java SDK | 使用 Spring AI BOM 管理 MCP 依赖；独立 SDK 已进入 2.x，但不要在 Spring AI 项目中随意覆盖。 |
+| 关系数据库 / 向量库 | PostgreSQL 18.x + pgvector 0.8.x | 适合企业订单、知识库、审计、向量检索统一治理。 |
+| 缓存 / 会话 | Redis 8.x | 适合短期 Memory、Session、限流和热点缓存。 |
+| Web 调试台 | Node.js 24 LTS + Vite 8.x + React 19.x + TypeScript 6.x | 现代前端主流组合；不使用 Create React App；如生态兼容不足，TypeScript 回退 5.9.x。 |
+| UI / 服务端状态 | Ant Design 6.x + TanStack Query v5 | 企业中后台和调试台常用组合；Ant Design 5.x 只作为兼容兜底。 |
+| 观测 | Actuator + Micrometer + OpenTelemetry | 与 Spring Boot 生态天然集成，后续接 Prometheus / Grafana。 |
+| 监控 | Prometheus 3.x + Grafana 13.x | 行业通用开源监控组合。 |
+| 部署 | Docker Compose v2 | 学习与单机验证足够；Kubernetes 作为后续生产化扩展。 |
+
+具体 patch 版本不要提前写死。Day 02 创建工程时，需要按当日官方源确认并锁定：
+
+- Maven BOM：Spring Boot、Spring AI。
+- npm package：Vite、React、TypeScript、Ant Design、TanStack Query。
+- Docker 镜像：PostgreSQL、pgvector、Redis、Prometheus、Grafana。
+
+如果出现兼容冲突，回退顺序为：
+
+1. 保持 Spring AI 2.0.x 不变，先回退 Spring Boot 到 3.5.x。
+2. 保持 React 19 不变，选择兼容 React 19 的 Ant Design 稳定线。
+3. 保持 PostgreSQL + pgvector 组合，不改成手写向量索引或临时文件向量库。
+4. 保持 Prometheus + Grafana，不在 `customer-admin-web` 里复制完整监控平台。
+
 ## 目标边界
 
 这份文档解决三个问题：

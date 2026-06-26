@@ -92,6 +92,30 @@ codex/archive-daily-learning-route
 
 对照框架只用于理解差异和借鉴设计，不应在 MVP 阶段同时引入多个 Agent 框架。
 
+## 版本基线与选型纪律
+
+截至 2026-06-26，后续创建工程、补依赖、写部署脚本时默认遵循以下版本基线：
+
+| 层级 | 默认选择 | 约束 |
+| --- | --- | --- |
+| JDK | Java 21 LTS 起步，预留 Java 25 LTS 升级 | 企业落地优先稳定；若 Spring Boot 4.1.x、构建插件和 IDE 全部兼容，可直接使用 Java 25。 |
+| Spring Boot | 4.1.x 优先，3.5.x 保守回退 | 不使用 Spring Boot 2.x；不主动引入已停止维护的 starter。 |
+| Spring AI | 2.0.x | 使用 Spring AI BOM 管理 AI 相关依赖。 |
+| MCP | Spring AI MCP / MCP Java SDK | 通过 Spring AI BOM 管理 MCP 版本，不手工覆盖；独立使用 MCP SDK 时必须重新核对兼容矩阵。 |
+| 数据库 | PostgreSQL 18.x + pgvector 0.8.x | 向量检索优先 pgvector，不自研向量索引。 |
+| Redis | Redis 8.x | 只用于缓存、会话、Memory、限流等明确场景。 |
+| 前端 | Node.js 24 LTS + Vite 8.x + React 19.x + TypeScript 6.x | 不使用 Create React App；如生态兼容不足，TypeScript 回退 5.9.x。 |
+| UI | Ant Design 6.x + TanStack Query v5 | Ant Design 5.x 只作为兼容兜底，第一版优先使用 6.x。 |
+| 观测 | Actuator + Micrometer + OpenTelemetry + Prometheus + Grafana | Web 调试台不替代 Grafana。 |
+| 部署 | Docker Compose v2 | 学习阶段先 Compose，Kubernetes 作为后续扩展。 |
+
+执行规则：
+
+- MVP 只引入主线依赖：Spring Boot、Spring AI、Spring AI MCP、PostgreSQL、Redis、Vite / React。
+- Spring AI Alibaba、LangChain4j、Google ADK Java 只作为对照或后续扩展，不在第一版同时落地。
+- 版本文档只写 major/minor 基线；具体 patch 在创建工程当天通过官方源或包管理器确认。
+- 发现依赖兼容冲突时，优先保持主线闭环可运行，再记录升级原因和回退条件。
+
 ## 推荐项目结构
 
 主项目建议落在：

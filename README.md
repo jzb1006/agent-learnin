@@ -62,6 +62,31 @@ Prometheus / Grafana
 Docker / Docker Compose
 ```
 
+## 版本基线
+
+截至 2026-06-26，本项目主线技术栈属于行业通用、仍在活跃演进的企业级 Java AI 应用栈。Day 02 创建工程时按以下基线落地：
+
+| 层级 | 推荐基线 | 说明 |
+| --- | --- | --- |
+| JDK | Java 21 LTS 起步，预留 Java 25 LTS 升级 | Java 25 已是最新 LTS，但 Java 21 仍是企业 Spring Boot 项目常见稳妥选择。 |
+| 后端框架 | Spring Boot 4.1.x；如依赖兼容性不足，回退 3.5.x | 新项目优先看 4.1.x；遇到 Spring AI、第三方 starter 或 IDE 兼容问题时使用 3.5.x。 |
+| AI 框架 | Spring AI 2.0.x | 主线使用 Spring AI，不在 MVP 同时引入多套 Agent 框架。 |
+| MCP | Spring AI MCP，版本由 Spring AI BOM 管理 | 不手工覆盖 MCP Java SDK 版本；独立 SDK 只在脱离 Spring AI 时单独评估。 |
+| 数据库 | PostgreSQL 18.x + pgvector 0.8.x | 订单、知识库元数据、向量检索统一优先落 PostgreSQL。 |
+| 缓存 / 会话 | Redis 8.x | 用于会话、短期 Memory、限流和调试态缓存。 |
+| 前端 | Node.js 24 LTS + Vite 8.x + React 19.x + TypeScript 6.x | Web 调试台使用现代前端栈，不采用 Create React App；如生态兼容不足，TypeScript 回退 5.9.x。 |
+| UI / 数据请求 | Ant Design 6.x + TanStack Query v5 | Ant Design 5.x 只作为兼容兜底，第一版优先使用 6.x。 |
+| 观测 | Spring Boot Actuator + Micrometer + OpenTelemetry | 应用侧先暴露指标和 trace，再接 Prometheus / Grafana。 |
+| 监控 | Prometheus 3.x + Grafana 13.x | Grafana 负责运行态 dashboard，Web 调试台不重复实现完整监控台。 |
+| 部署 | Docker Compose v2 | 学习阶段优先 Compose，Kubernetes 作为后续扩展。 |
+
+选型原则：
+
+- **主线依赖只保留一套：** Spring Boot + Spring AI + Spring AI MCP。
+- **对照框架不进入 MVP：** Spring AI Alibaba、LangChain4j、Google ADK Java 只用于学习差异和后续扩展。
+- **版本不写死到补丁号：** 创建工程当天再锁定具体 patch，避免课程文档很快过期。
+- **避免落后技术：** 不使用 Spring Boot 2.x、Java 8/11、新项目 Create React App、手写向量库、纯日志式观测。
+
 ## 默认部署环境
 
 后续项目服务和企业级中间件默认部署到同一台学习服务器：
