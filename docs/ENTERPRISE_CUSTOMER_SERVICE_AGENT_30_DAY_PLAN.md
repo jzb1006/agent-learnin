@@ -122,6 +122,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 04 | 已完成 | 2026-06-27 | [实现基础 REST API](day-04-basic-rest-api.md)，[customer-agent-app](../projects/enterprise-customer-service-agent/customer-agent-app/README.md)，[customer-admin-web](../projects/enterprise-customer-service-agent/customer-admin-web/README.md) |
 | Day 05 | 已完成 | 2026-06-27 | [配置、错误处理与基础测试](day-05-configuration-error-handling-testing.md) |
 | Day 06 | 已完成 | 2026-06-27 | [接入 Spring AI ChatClient](day-06-spring-ai-chat-client.md) |
+| Day 07 | 已完成 | 2026-06-27 | [设计客服 Agent Prompt](day-07-customer-agent-prompt.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 

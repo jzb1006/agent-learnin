@@ -14,13 +14,8 @@ import org.springframework.ai.chat.client.ChatClient;
 @Slf4j
 public class SpringAiCustomerChatModelClient implements CustomerChatModelClient {
 
-    private static final String SYSTEM_PROMPT = """
-            你是企业级智能客服与订单协同 Agent。
-            你只能基于输入的订单证据回答，不得编造订单状态、课程时间或退款承诺。
-            回复必须简洁、专业，并在信息不足时提示转人工或继续确认。
-            """;
-
     private final ChatClient chatClient;
+    private final CustomerChatPromptTemplate promptTemplate;
 
     /**
      * 创建 Spring AI 客服模型客户端。
@@ -29,6 +24,7 @@ public class SpringAiCustomerChatModelClient implements CustomerChatModelClient 
      */
     public SpringAiCustomerChatModelClient(ChatClient.Builder chatClientBuilder) {
         this.chatClient = chatClientBuilder.build();
+        this.promptTemplate = new CustomerChatPromptTemplate();
     }
 
     /**
@@ -43,12 +39,8 @@ public class SpringAiCustomerChatModelClient implements CustomerChatModelClient 
         try {
             log.info("spring_ai_chat_call_start tenantId={} messageLength={}", prompt.tenantId(), prompt.message().length());
             var content = chatClient.prompt()
-                    .system(SYSTEM_PROMPT)
-                    .user("""
-                            租户：%s
-                            用户问题：%s
-                            订单证据：%s
-                            """.formatted(prompt.tenantId(), prompt.message(), prompt.orderEvidence()))
+                    .system(promptTemplate.systemPrompt())
+                    .user(promptTemplate.userPrompt(prompt))
                     .call()
                     .content();
             if (content == null || content.isBlank()) {
