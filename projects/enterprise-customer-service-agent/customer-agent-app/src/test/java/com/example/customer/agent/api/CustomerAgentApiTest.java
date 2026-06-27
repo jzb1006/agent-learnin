@@ -148,6 +148,27 @@ class CustomerAgentApiTest {
     }
 
     @Test
+    void shouldReturnRefundOrCancelRouteFromChatResponse() throws Exception {
+        var requestBody = """
+                {
+                  "tenantId": "tenant-demo",
+                  "message": "订单 order-1001 可以退款吗？"
+                }
+                """;
+
+        var response = post("/chat", requestBody, "trace-refund-intent-test");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(body.path("traceId").asText()).isEqualTo("trace-refund-intent-test");
+        assertThat(body.path("route").asText()).isEqualTo("REFUND_OR_CANCEL");
+        assertThat(body.path("riskLevel").asText()).isEqualTo("HIGH_RISK");
+        assertThat(body.path("reply").asText()).contains("不能直接执行退款");
+        assertThat(body.path("order").path("id").asText()).isEqualTo("order-1001");
+        assertThat(body.path("nextActions").get(0).asText()).isEqualTo("进入人工审批前置判断");
+    }
+
+    @Test
     void shouldRejectBlankChatMessage() throws Exception {
         var requestBody = """
                 {

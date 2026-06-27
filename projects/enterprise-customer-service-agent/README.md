@@ -2,14 +2,14 @@
 
 ## 定位
 
-这是 30 天路线的主工程目录。当前已完成多模块骨架、核心领域模型、基础 REST API、本地调试台的第一条调用链，以及 Spring AI ChatClient 的最小模型调用边界。
+这是 30 天路线的主工程目录。当前已完成多模块骨架、核心领域模型、基础 REST API、本地调试台的第一条调用链、Spring AI ChatClient 的最小模型调用边界，以及 `/chat` 的本地意图识别 fallback。
 
 ## 模块
 
 | 模块 | 职责 | 当前状态 |
 | --- | --- | --- |
 | `customer-domain` | 租户、订单、知识库、审批、trace 等领域模型 | Day 03 已补核心领域模型和单元测试 |
-| `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | Day 06 已补 Spring AI ChatClient 最小业务边界 |
+| `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | Day 08 已补意图识别、模型回复和基础 API |
 | `customer-mcp-server` | MCP tools/resources/prompts 暴露 | Day 02 仅有模块锚点；Day 21 后实现 MCP |
 | `customer-admin-web` | 本地 Agent 调试台 | Day 04 已展示 health、订单查询和 chat 响应快照 |
 | `knowledge-base` | FAQ / 政策 / 产品知识样例 | Day 16 开始填充 |
