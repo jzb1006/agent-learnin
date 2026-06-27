@@ -8,7 +8,7 @@
 
 | 模块 | 职责 | 当前状态 |
 | --- | --- | --- |
-| `customer-domain` | 租户、订单、知识库、审批、trace 等领域模型 | Day 02 仅有模块锚点；Day 03 补领域模型 |
+| `customer-domain` | 租户、订单、知识库、审批、trace 等领域模型 | Day 03 已补核心领域模型和单元测试 |
 | `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | Day 02 可启动骨架；Day 04 补基础 API |
 | `customer-mcp-server` | MCP tools/resources/prompts 暴露 | Day 02 仅有模块锚点；Day 21 后实现 MCP |
 | `customer-admin-web` | 本地 Agent 调试台 | Day 02 可启动基础页面；后续接入 Chat、Order、Tool、RAG、Approval |
