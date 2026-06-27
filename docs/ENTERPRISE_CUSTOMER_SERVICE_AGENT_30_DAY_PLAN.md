@@ -117,7 +117,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day | 状态 | 完成日期 | 产物 |
 | --- | --- | --- | --- |
 | Day 01 | 已完成 | 2026-06-26 | [从 Week10 提炼 Java 项目范围](day-01-week10-java-scope.md) |
-| Day 02 | 未开始 | - | 创建多模块项目骨架 |
+| Day 02 | 已完成 | 2026-06-27 | [创建多模块项目骨架](day-02-project-skeleton.md)，[主工程目录](../projects/enterprise-customer-service-agent/README.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 

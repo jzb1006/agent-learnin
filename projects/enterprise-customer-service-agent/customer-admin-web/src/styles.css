@@ -1,0 +1,72 @@
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f7fb;
+}
+
+.debug-shell {
+  min-height: 100vh;
+}
+
+.debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: auto;
+  min-height: 72px;
+  padding: 16px 32px;
+  background: #111827;
+}
+
+.debug-header .ant-typography {
+  margin: 0;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.debug-header .ant-badge-status-text {
+  color: #dbeafe;
+}
+
+.debug-content {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0;
+}
+
+.debug-intro {
+  margin-bottom: 24px;
+}
+
+.debug-intro .ant-typography {
+  max-width: 760px;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.module-card {
+  min-height: 112px;
+}
+
+@media (max-width: 640px) {
+  .debug-header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .debug-content {
+    padding: 28px 0;
+  }
+}
