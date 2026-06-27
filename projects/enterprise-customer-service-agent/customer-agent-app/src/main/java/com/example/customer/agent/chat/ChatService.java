@@ -1,5 +1,6 @@
 package com.example.customer.agent.chat;
 
+import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.order.OrderLookupService;
 import com.example.customer.agent.order.OrderResponse;
 import com.example.customer.domain.tool.ToolRiskLevel;
@@ -26,6 +27,7 @@ public class ChatService {
     private static final Pattern ORDER_ID_PATTERN = Pattern.compile("order-[0-9]+");
 
     private final OrderLookupService orderLookupService;
+    private final CustomerAgentProperties properties;
 
     /**
      * 生成基础结构化客服回复。
@@ -35,14 +37,14 @@ public class ChatService {
      */
     public ChatResponse reply(ChatRequest request) {
         var message = Optional.ofNullable(request.message()).orElse("");
-        var orderId = extractOrderId(message).orElse("order-1001");
+        var orderId = extractOrderId(message).orElse(properties.getDefaultOrderId());
         var order = orderLookupService.getOrder(orderId);
         var orderResponse = OrderResponse.from(order);
         var reply = "已查询到订单 " + order.id() + "，课程为「" + order.productName()
                 + "」，当前状态为 " + order.status().name() + "。";
 
         return new ChatResponse(
-                "trace-" + UUID.randomUUID(),
+                properties.getTraceIdPrefix() + "-" + UUID.randomUUID(),
                 ConversationRoute.ORDER_LOOKUP.name(),
                 ToolRiskLevel.READ_ONLY.name(),
                 reply,

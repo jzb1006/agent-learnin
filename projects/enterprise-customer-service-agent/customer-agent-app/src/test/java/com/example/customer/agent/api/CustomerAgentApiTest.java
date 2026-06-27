@@ -2,6 +2,7 @@ package com.example.customer.agent.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.customer.agent.config.CustomerAgentProperties;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -24,8 +25,17 @@ class CustomerAgentApiTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CustomerAgentProperties properties;
+
     @LocalServerPort
     private int port;
+
+    @Test
+    void shouldBindCustomerAgentProperties() {
+        assertThat(properties.getDefaultOrderId()).isEqualTo("order-1001");
+        assertThat(properties.getTraceIdPrefix()).isEqualTo("trace");
+    }
 
     @Test
     void shouldReturnApplicationHealth() throws Exception {
@@ -56,8 +66,12 @@ class CustomerAgentApiTest {
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(body.path("timestamp").asText()).isNotBlank();
+        assertThat(body.path("status").asInt()).isEqualTo(404);
         assertThat(body.path("errorCode").asText()).isEqualTo("ORDER_NOT_FOUND");
         assertThat(body.path("message").asText()).contains("missing-order");
+        assertThat(body.path("path").asText()).isEqualTo("/api/orders/missing-order");
+        assertThat(body.path("traceId").asText()).isNotBlank();
     }
 
     @Test
@@ -79,6 +93,26 @@ class CustomerAgentApiTest {
         assertThat(body.path("reply").asText()).contains("企业级 AI Agent 实战营");
         assertThat(body.path("order").path("id").asText()).isEqualTo("order-1001");
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo("展示订单状态");
+    }
+
+    @Test
+    void shouldRejectBlankChatMessage() throws Exception {
+        var requestBody = """
+                {
+                  "tenantId": "tenant-demo",
+                  "message": " "
+                }
+                """;
+
+        var response = post("/chat", requestBody);
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(body.path("status").asInt()).isEqualTo(400);
+        assertThat(body.path("errorCode").asText()).isEqualTo("VALIDATION_ERROR");
+        assertThat(body.path("message").asText()).contains("message");
+        assertThat(body.path("path").asText()).isEqualTo("/chat");
+        assertThat(body.path("traceId").asText()).isNotBlank();
     }
 
     private HttpResponse<String> get(String path) throws Exception {

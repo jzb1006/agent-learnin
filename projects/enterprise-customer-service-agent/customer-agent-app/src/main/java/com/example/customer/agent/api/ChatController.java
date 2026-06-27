@@ -3,6 +3,7 @@ package com.example.customer.agent.api;
 import com.example.customer.agent.chat.ChatRequest;
 import com.example.customer.agent.chat.ChatResponse;
 import com.example.customer.agent.chat.ChatService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +30,7 @@ public class ChatController {
      * @return 结构化对话响应
      */
     @PostMapping("/chat")
-    public ChatResponse chat(@RequestBody ChatRequest request) {
+    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
         return chatService.reply(request);
     }
 }

@@ -1,7 +1,9 @@
 package com.example.customer.agent;
 
+import com.example.customer.agent.config.CustomerAgentProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * 客服 Agent 应用入口。
@@ -12,6 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @since 2026-06-27 08:29:00
  */
 @SpringBootApplication
+@EnableConfigurationProperties(CustomerAgentProperties.class)
 public class CustomerAgentApplication {
 
     private static final String MODULE_NAME = "customer-agent-app";

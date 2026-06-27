@@ -1,8 +1,14 @@
 package com.example.customer.agent.api;
 
+import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.order.OrderNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -15,17 +21,54 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * @since 2026-06-27 09:35:00
  */
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalApiExceptionHandler {
+
+    private final CustomerAgentProperties properties;
 
     /**
      * 转换订单不存在异常。
      *
      * @param exception 订单不存在异常
+     * @param request HTTP 请求
      * @return 404 错误响应
      */
     @ExceptionHandler(OrderNotFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleOrderNotFound(OrderNotFoundException exception) {
-        var body = new ApiErrorResponse("ORDER_NOT_FOUND", "订单不存在：" + exception.orderId());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    public ResponseEntity<ApiErrorResponse> handleOrderNotFound(
+            OrderNotFoundException exception,
+            HttpServletRequest request) {
+        var status = HttpStatus.NOT_FOUND;
+        var body = error(status, "ORDER_NOT_FOUND", "订单不存在：" + exception.orderId(), request);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    /**
+     * 转换请求参数校验异常。
+     *
+     * @param exception 参数校验异常
+     * @param request HTTP 请求
+     * @return 400 错误响应
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiErrorResponse> handleValidationError(
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request) {
+        var status = HttpStatus.BAD_REQUEST;
+        var message = exception.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .orElse("请求参数不合法");
+        var body = error(status, "VALIDATION_ERROR", message, request);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    private ApiErrorResponse error(HttpStatus status, String errorCode, String message, HttpServletRequest request) {
+        return new ApiErrorResponse(
+                Instant.now(),
+                status.value(),
+                errorCode,
+                message,
+                request.getRequestURI(),
+                properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
     }
 }

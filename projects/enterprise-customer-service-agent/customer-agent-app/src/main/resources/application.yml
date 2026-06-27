@@ -4,3 +4,7 @@ server:
 spring:
   application:
     name: customer-agent-app
+
+customer-agent:
+  default-order-id: order-1001
+  trace-id-prefix: trace
