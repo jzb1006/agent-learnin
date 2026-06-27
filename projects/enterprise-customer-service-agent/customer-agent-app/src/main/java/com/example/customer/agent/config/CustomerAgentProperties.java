@@ -29,4 +29,24 @@ public class CustomerAgentProperties {
      */
     @NotBlank
     private String traceIdPrefix = "trace";
+
+    /**
+     * 模型调用配置。
+     */
+    private ChatModel chatModel = new ChatModel();
+
+    /**
+     * 控制客服对话是否调用真实 ChatModel。
+     *
+     * @author jiangzhibin
+     * @since 2026-06-27 10:55:00
+     */
+    @Data
+    public static class ChatModel {
+
+        /**
+         * 是否启用真实模型调用。
+         */
+        private boolean enabled;
+    }
 }

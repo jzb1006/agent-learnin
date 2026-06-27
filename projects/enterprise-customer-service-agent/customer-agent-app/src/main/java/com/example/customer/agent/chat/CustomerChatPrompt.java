@@ -1,0 +1,13 @@
+package com.example.customer.agent.chat;
+
+/**
+ * 客服对话模型提示词上下文。
+ *
+ * @param tenantId 租户标识
+ * @param message 用户消息
+ * @param orderEvidence 订单证据
+ * @author jiangzhibin
+ * @since 2026-06-27 10:55:00
+ */
+public record CustomerChatPrompt(String tenantId, String message, String orderEvidence) {
+}

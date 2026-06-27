@@ -1,11 +1,14 @@
 package com.example.customer.agent.api;
 
+import com.example.customer.agent.chat.ChatModelException;
 import com.example.customer.agent.config.CustomerAgentProperties;
+import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 @RequiredArgsConstructor
+@Slf4j
 public class GlobalApiExceptionHandler {
 
     private final CustomerAgentProperties properties;
@@ -38,6 +42,7 @@ public class GlobalApiExceptionHandler {
             OrderNotFoundException exception,
             HttpServletRequest request) {
         var status = HttpStatus.NOT_FOUND;
+        log.warn("api_error errorCode=ORDER_NOT_FOUND path={} orderId={}", request.getRequestURI(), exception.orderId());
         var body = error(status, "ORDER_NOT_FOUND", "订单不存在：" + exception.orderId(), request);
         return ResponseEntity.status(status).body(body);
     }
@@ -58,7 +63,25 @@ public class GlobalApiExceptionHandler {
                 .findFirst()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse("请求参数不合法");
+        log.warn("api_error errorCode=VALIDATION_ERROR path={} message={}", request.getRequestURI(), message);
         var body = error(status, "VALIDATION_ERROR", message, request);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    /**
+     * 转换模型调用异常。
+     *
+     * @param exception 模型调用异常
+     * @param request HTTP 请求
+     * @return 502 错误响应
+     */
+    @ExceptionHandler(ChatModelException.class)
+    public ResponseEntity<ApiErrorResponse> handleChatModelError(
+            ChatModelException exception,
+            HttpServletRequest request) {
+        var status = HttpStatus.BAD_GATEWAY;
+        log.error("api_error errorCode=CHAT_MODEL_ERROR path={}", request.getRequestURI(), exception);
+        var body = error(status, "CHAT_MODEL_ERROR", exception.getMessage(), request);
         return ResponseEntity.status(status).body(body);
     }
 
@@ -69,6 +92,6 @@ public class GlobalApiExceptionHandler {
                 errorCode,
                 message,
                 request.getRequestURI(),
-                properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
+                RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID()));
     }
 }

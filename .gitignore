@@ -7,3 +7,4 @@ target/
 build/
 dist/
 node_modules/
+projects/enterprise-customer-service-agent/.env

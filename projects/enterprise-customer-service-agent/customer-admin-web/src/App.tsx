@@ -1,16 +1,22 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useMutation, useQuery } from '@tanstack/react-query';
 import {
+  Alert,
   App as AntApp,
   Badge,
+  Button,
   Card,
   ConfigProvider,
   Descriptions,
+  Divider,
+  Empty,
+  Input,
   Layout,
-  List,
   Space,
   Tag,
   Typography
 } from 'antd';
+import { Send } from 'lucide-react';
+import { useState } from 'react';
 import './styles.css';
 
 type HealthResponse = {
@@ -34,6 +40,13 @@ type ChatResponse = {
   reply: string;
   order: OrderResponse;
   nextActions: string[];
+};
+
+type ApiErrorResponse = {
+  errorCode?: string;
+  message?: string;
+  status?: number;
+  traceId?: string;
 };
 
 const queryClient = new QueryClient();
@@ -71,13 +84,24 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let body: ApiErrorResponse | undefined;
+    try {
+      body = (await response.json()) as ApiErrorResponse;
+    } catch {
+      body = undefined;
+    }
+    throw new Error(body?.message || body?.errorCode || `Request failed: ${response.status}`);
   }
 
   return response.json() as Promise<T>;
 }
 
 function DebugDashboard() {
+  const [tenantId, setTenantId] = useState(initialOrder.tenantId);
+  const [message, setMessage] = useState(`帮我查询订单 ${initialOrder.id} 什么时候开课`);
+  const [chat, setChat] = useState(initialChat);
+  const [chatError, setChatError] = useState<string | null>(null);
+
   const healthQuery = useQuery({
     queryKey: ['health'],
     queryFn: () => requestJson<HealthResponse>('/health'),
@@ -88,21 +112,33 @@ function DebugDashboard() {
     queryFn: () => requestJson<OrderResponse>(`/api/orders/${initialOrder.id}`),
     initialData: initialOrder
   });
-  const chatQuery = useQuery({
-    queryKey: ['chat', initialOrder.id],
-    queryFn: () =>
+  const chatMutation = useMutation({
+    mutationFn: (payload: ChatRequestPayload) =>
       requestJson<ChatResponse>('/chat', {
         method: 'POST',
-        body: JSON.stringify({
-          tenantId: initialOrder.tenantId,
-          message: `帮我查询订单 ${initialOrder.id} 什么时候开课`
-        })
+        body: JSON.stringify(payload)
       }),
-    initialData: initialChat
+    onError: (error) => {
+      setChatError(error instanceof Error ? error.message : '请求失败');
+    },
+    onSuccess: (response) => {
+      setChat(response);
+      setChatError(null);
+    }
   });
   const health = healthQuery.data;
   const order = orderQuery.data;
-  const chat = chatQuery.data;
+  const canSubmitChat = tenantId.trim().length > 0 && message.trim().length > 0;
+
+  function submitChat() {
+    if (!canSubmitChat) {
+      return;
+    }
+    chatMutation.mutate({
+      tenantId: tenantId.trim(),
+      message: message.trim()
+    });
+  }
 
   return (
     <Layout className="debug-shell">
@@ -111,7 +147,7 @@ function DebugDashboard() {
         <Badge status={health.status === 'UP' ? 'success' : 'error'} text={`Service ${health.status}`} />
       </Layout.Header>
       <Layout.Content className="debug-content">
-        <section className="debug-grid" aria-label="Day 04 API snapshots">
+        <section className="debug-grid" aria-label="Agent debug console">
           <Card className="debug-panel" title="Health">
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Service">{health.service}</Descriptions.Item>
@@ -134,25 +170,79 @@ function DebugDashboard() {
           </Card>
 
           <Card className="debug-panel chat-panel" title="Chat Console">
-            <Space orientation="vertical" size={12}>
-              <Space wrap>
-                <Tag color="geekblue">{chat.route}</Tag>
-                <Tag color="green">{chat.riskLevel}</Tag>
-                <Tag>{chat.traceId}</Tag>
-              </Space>
-              <Typography.Paragraph className="reply-text">{chat.reply}</Typography.Paragraph>
-              <List
-                size="small"
-                dataSource={chat.nextActions}
-                renderItem={(action) => <List.Item>{action}</List.Item>}
-              />
-            </Space>
+            <div className="chat-workbench">
+              <div className="chat-form">
+                <label className="field-label" htmlFor="tenant-id">
+                  租户
+                </label>
+                <Input id="tenant-id" value={tenantId} onChange={(event) => setTenantId(event.target.value)} />
+
+                <label className="field-label" htmlFor="chat-message">
+                  用户消息
+                </label>
+                <Input.TextArea
+                  id="chat-message"
+                  autoSize={{ minRows: 4, maxRows: 8 }}
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                />
+
+                <Button
+                  className="send-button"
+                  icon={<Send size={16} />}
+                  disabled={!canSubmitChat}
+                  loading={chatMutation.isPending}
+                  onClick={submitChat}
+                  type="primary"
+                >
+                  发送
+                </Button>
+              </div>
+
+              <div className="chat-result">
+                {chatError ? <Alert message={chatError} showIcon type="error" /> : null}
+
+                <Space wrap>
+                  <Tag color="geekblue">{chat.route}</Tag>
+                  <Tag color="green">{chat.riskLevel}</Tag>
+                  <Tag>{chat.traceId}</Tag>
+                </Space>
+                <Typography.Paragraph className="reply-text">{chat.reply}</Typography.Paragraph>
+
+                <Divider className="compact-divider" />
+                <Typography.Title level={3}>Order Evidence</Typography.Title>
+                {chat.order ? (
+                  <Descriptions column={1} size="small">
+                    <Descriptions.Item label="Order">{chat.order.id}</Descriptions.Item>
+                    <Descriptions.Item label="Product">{chat.order.productName}</Descriptions.Item>
+                    <Descriptions.Item label="Status">
+                      <Tag color="blue">{chat.order.status}</Tag>
+                    </Descriptions.Item>
+                  </Descriptions>
+                ) : (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+
+                <Divider className="compact-divider" />
+                <Typography.Title level={3}>Next Actions</Typography.Title>
+                <ul className="next-actions">
+                  {chat.nextActions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </Card>
         </section>
       </Layout.Content>
     </Layout>
   );
 }
+
+type ChatRequestPayload = {
+  message: string;
+  tenantId: string;
+};
 
 function App() {
   return (

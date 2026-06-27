@@ -5,6 +5,7 @@ import com.example.customer.agent.chat.ChatResponse;
 import com.example.customer.agent.chat.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class ChatController {
 
     private final ChatService chatService;
@@ -31,6 +33,7 @@ public class ChatController {
      */
     @PostMapping("/chat")
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+        log.info("chat_api_request tenantId={} messageLength={}", request.tenantId(), request.message().length());
         return chatService.reply(request);
     }
 }

@@ -3,6 +3,7 @@ package com.example.customer.agent.api;
 import com.example.customer.agent.order.OrderLookupService;
 import com.example.customer.agent.order.OrderResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
+@Slf4j
 public class OrderController {
 
     private final OrderLookupService orderLookupService;
@@ -31,6 +33,7 @@ public class OrderController {
      */
     @GetMapping("/{orderId}")
     public OrderResponse getOrder(@PathVariable("orderId") String orderId) {
+        log.info("order_api_request orderId={}", orderId);
         return OrderResponse.from(orderLookupService.getOrder(orderId));
     }
 }

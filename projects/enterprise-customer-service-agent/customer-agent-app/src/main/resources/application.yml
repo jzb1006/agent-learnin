@@ -1,10 +1,44 @@
 server:
   port: 8080
 
+springdotenv:
+  directory: ..
+  filename: .env
+  ignore-if-missing: true
+
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+      - optional:file:projects/enterprise-customer-service-agent/.env[.properties]
   application:
     name: customer-agent-app
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: ${SPRING_AI_MODEL_CHAT:none}
+      embedding: none
+      image: none
+      moderation: none
+    openai:
+      api-key: ${SPRING_AI_OPENAI_API_KEY:}
+      base-url: ${SPRING_AI_OPENAI_BASE_URL:https://api.deepseek.com}
+      chat:
+        model: ${SPRING_AI_OPENAI_CHAT_MODEL:deepseek-v4-flash}
+        temperature: ${SPRING_AI_OPENAI_CHAT_TEMPERATURE:0.2}
 
 customer-agent:
   default-order-id: order-1001
   trace-id-prefix: trace
+  chat-model:
+    enabled: ${CUSTOMER_AGENT_CHAT_MODEL_ENABLED:false}
