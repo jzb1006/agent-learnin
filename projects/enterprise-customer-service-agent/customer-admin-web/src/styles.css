@@ -38,25 +38,27 @@ body {
 .debug-content {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 40px 0;
+  padding: 32px 0;
 }
 
-.debug-intro {
-  margin-bottom: 24px;
-}
-
-.debug-intro .ant-typography {
-  max-width: 760px;
-}
-
-.module-grid {
+.debug-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
   gap: 16px;
 }
 
-.module-card {
-  min-height: 112px;
+.debug-panel {
+  min-height: 220px;
+  border-radius: 8px;
+}
+
+.chat-panel {
+  grid-column: 1 / -1;
+}
+
+.reply-text {
+  max-width: 760px;
+  margin-bottom: 0;
 }
 
 @media (max-width: 640px) {
@@ -68,5 +70,9 @@ body {
 
   .debug-content {
     padding: 28px 0;
+  }
+
+  .debug-grid {
+    grid-template-columns: 1fr;
   }
 }

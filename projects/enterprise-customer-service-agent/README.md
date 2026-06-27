@@ -2,16 +2,16 @@
 
 ## 定位
 
-这是 30 天路线的主工程目录。Day 02 只建立可被 IDE 识别、可测试、可扩展的多模块骨架，不提前实现订单、RAG、MCP 或 LLM 业务逻辑。
+这是 30 天路线的主工程目录。当前已完成多模块骨架、核心领域模型、基础 REST API 和本地调试台的第一条调用链。
 
 ## 模块
 
 | 模块 | 职责 | 当前状态 |
 | --- | --- | --- |
 | `customer-domain` | 租户、订单、知识库、审批、trace 等领域模型 | Day 03 已补核心领域模型和单元测试 |
-| `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | Day 02 可启动骨架；Day 04 补基础 API |
+| `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | Day 04 已补 `/health`、`/chat`、`/api/orders/{orderId}` |
 | `customer-mcp-server` | MCP tools/resources/prompts 暴露 | Day 02 仅有模块锚点；Day 21 后实现 MCP |
-| `customer-admin-web` | 本地 Agent 调试台 | Day 02 可启动基础页面；后续接入 Chat、Order、Tool、RAG、Approval |
+| `customer-admin-web` | 本地 Agent 调试台 | Day 04 已展示 health、订单查询和 chat 响应快照 |
 | `knowledge-base` | FAQ / 政策 / 产品知识样例 | Day 16 开始填充 |
 | `evals` | Agent 回归评测用例 | Day 29 开始填充 |
 | `traces` | 本地 trace 和审计样例 | Day 26 开始填充 |
@@ -48,6 +48,13 @@ cd customer-admin-web
 npm test
 ```
 
+前端调试台构建：
+
+```bash
+cd customer-admin-web
+npm run build
+```
+
 前端本地启动：
 
 ```bash
@@ -57,7 +64,7 @@ npm run dev
 
 ## 设计原则
 
-- KISS：Day 02 只做工程边界和运行链路，不做业务提前实现。
-- YAGNI：不提前引入 Spring AI starter、MCP starter、数据库或 Redis 连接。
+- KISS：先用 mock 订单和基础结构化响应跑通客服订单最小闭环。
+- YAGNI：不提前引入真实数据库、Redis、Spring AI 调用或 MCP 工具实现。
 - DRY：版本集中在父 `pom.xml` 和前端 `package.json`，避免模块重复锁版本。
 - SOLID：领域、应用入口、MCP 暴露和调试台分离，后续可以独立演进和测试。
