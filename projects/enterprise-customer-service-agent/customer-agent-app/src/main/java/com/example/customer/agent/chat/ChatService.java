@@ -7,6 +7,7 @@ import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderResponse;
 import com.example.customer.agent.tool.OrderLookupTool;
 import com.example.customer.agent.tool.RefundPolicyCheckTool;
+import com.example.customer.agent.tool.RetrieveKnowledgeTool;
 import com.example.customer.domain.tool.ToolResult;
 import com.example.customer.domain.tool.ToolRiskLevel;
 import com.example.customer.domain.trace.ConversationRoute;
@@ -38,6 +39,7 @@ public class ChatService {
     private final CustomerAgentResponseParser responseParser;
     private final OrderLookupTool orderLookupTool;
     private final RefundPolicyCheckTool refundPolicyCheckTool;
+    private final RetrieveKnowledgeTool retrieveKnowledgeTool;
 
     /**
      * 生成基础结构化客服回复。
@@ -51,7 +53,7 @@ public class ChatService {
         var orderId = orderIdFor(routeResult);
         var riskLevel = riskLevelFor(routeResult.route());
         var traceId = RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
-        var toolExecution = executeTool(routeResult.route(), orderId, request.tenantId());
+        var toolExecution = executeTool(routeResult.route(), message, orderId, request.tenantId());
         var orderResponse = toolExecution.order();
         log.info(
                 "chat_reply_start tenantId={} route={} orderId={} messageLength={} modelEnabled={}",
@@ -76,7 +78,10 @@ public class ChatService {
         return response;
     }
 
-    private ToolExecution executeTool(ConversationRoute route, String orderId, String tenantId) {
+    private ToolExecution executeTool(ConversationRoute route, String message, String orderId, String tenantId) {
+        if (route == ConversationRoute.KNOWLEDGE_QA) {
+            return executeKnowledgeRetrieval(message);
+        }
         if (route == ConversationRoute.ORDER_LOOKUP && orderId != null) {
             return executeOrderLookup(orderId, tenantId);
         }
@@ -84,6 +89,21 @@ public class ChatService {
             return executeRefundPolicyCheck(orderId, tenantId);
         }
         return ToolExecution.empty();
+    }
+
+    private ToolExecution executeKnowledgeRetrieval(String query) {
+        var knowledgeBase = properties.getKnowledgeBase();
+        var tenantId = knowledgeBase.getDefaultTenantId();
+        var startedAtNanos = System.nanoTime();
+        var toolResult = retrieveKnowledgeTool.search(query, tenantId, knowledgeBase.getTopK());
+        var durationMs = elapsedMillis(startedAtNanos);
+        var toolCall = toolCall(
+                RetrieveKnowledgeTool.NAME,
+                Map.of("query", query, "tenantId", tenantId),
+                ToolRiskLevel.READ_ONLY,
+                durationMs,
+                toolResult);
+        return new ToolExecution(null, toolResult, List.of(toolCall));
     }
 
     private ToolExecution executeOrderLookup(String orderId, String tenantId) {
@@ -168,7 +188,7 @@ public class ChatService {
         var order = toolExecution.order();
         return switch (routeResult.route()) {
             case ORDER_LOOKUP -> orderLookupAnswer(order, toolExecution.toolResult());
-            case KNOWLEDGE_QA -> "已识别为知识库问答问题。当前 Day 08 只完成意图识别，知识库回答将在 RAG 接入后提供。";
+            case KNOWLEDGE_QA -> knowledgeAnswer(toolExecution.toolResult());
             case REFUND_OR_CANCEL -> refundPolicyAnswer(toolExecution.toolResult());
             case HUMAN_HANDOFF -> "已识别到人工客服诉求。当前只记录人工转接意向，不创建外部真实工单。";
             case DIRECT -> "已收到你的问题。当前未命中订单、知识库、退款取消或人工转接意图，可先按普通客服问题处理。";
@@ -181,6 +201,20 @@ public class ChatService {
         }
         return "已查询到订单 " + order.id() + "，课程为「" + order.productName()
                 + "」，当前状态为 " + order.status() + "。";
+    }
+
+    private String knowledgeAnswer(ToolResult toolResult) {
+        if (toolResult == null || !toolResult.succeeded()) {
+            return "当前知识库未检索到可引用答案，建议转人工或记录为未命中问题。";
+        }
+        var matches = toolMatches(toolResult);
+        if (matches.isEmpty()) {
+            return "当前知识库未检索到可引用答案，建议转人工或记录为未命中问题。";
+        }
+        var bestMatch = matches.getFirst();
+        return "根据知识库「%s」：%s".formatted(
+                payloadText(bestMatch, "title"),
+                compactContent(payloadText(bestMatch, "content")));
     }
 
     private String refundPolicyAnswer(ToolResult toolResult) {
@@ -206,17 +240,31 @@ public class ChatService {
         if (toolResult != null && toolResult.succeeded() && toolResult.payload().containsKey("orderId")) {
             return List.of("order:" + toolPayloadText(toolResult, "orderId"));
         }
+        if (toolResult != null && RetrieveKnowledgeTool.NAME.equals(toolResult.toolName()) && toolResult.succeeded()) {
+            return toolMatches(toolResult).stream()
+                    .map(match -> payloadText(match, "source"))
+                    .filter(source -> !source.isBlank())
+                    .distinct()
+                    .toList();
+        }
         return List.of();
     }
 
     private List<String> nextActionsFor(ConversationRoute route, ToolResult toolResult) {
         return switch (route) {
             case ORDER_LOOKUP -> List.of("展示订单状态", "等待用户继续追问");
-            case KNOWLEDGE_QA -> List.of("等待 RAG 知识库接入", "保留用户问题用于后续知识库验证");
+            case KNOWLEDGE_QA -> knowledgeNextActions(toolResult);
             case REFUND_OR_CANCEL -> refundNextActions(toolResult);
             case HUMAN_HANDOFF -> List.of("记录人工转接意向", "等待后续低风险写工具接入");
             case DIRECT -> List.of("直接回复用户", "必要时继续澄清问题");
         };
+    }
+
+    private List<String> knowledgeNextActions(ToolResult toolResult) {
+        if (toolResult == null || !toolResult.succeeded()) {
+            return List.of("记录知识库未命中", "必要时转人工");
+        }
+        return List.of("展示知识库来源", "等待用户继续追问");
     }
 
     private List<String> refundNextActions(ToolResult toolResult) {
@@ -344,7 +392,34 @@ public class ChatService {
         if (OrderLookupTool.NAME.equals(toolResult.toolName())) {
             return "%s %s %s".formatted(payload.get("orderId"), payload.get("productName"), payload.get("status"));
         }
+        if (RetrieveKnowledgeTool.NAME.equals(toolResult.toolName())) {
+            return toolMatches(toolResult).stream()
+                    .findFirst()
+                    .map(match -> "%s %s".formatted(payloadText(match, "title"), payloadText(match, "source")))
+                    .orElse("知识库无命中");
+        }
         return payload.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> toolMatches(ToolResult toolResult) {
+        var matches = toolResult.payload().get("matches");
+        if (matches instanceof List<?> values) {
+            return values.stream()
+                    .filter(Map.class::isInstance)
+                    .map(value -> (Map<String, Object>) value)
+                    .toList();
+        }
+        return List.of();
+    }
+
+    private String payloadText(Map<String, Object> payload, String fieldName) {
+        var value = payload.get(fieldName);
+        return value == null ? "" : value.toString();
+    }
+
+    private String compactContent(String content) {
+        return content.replaceAll("\\s+", " ").strip();
     }
 
     private record ToolExecution(OrderResponse order, ToolResult toolResult, List<CustomerAgentToolCall> toolCalls) {

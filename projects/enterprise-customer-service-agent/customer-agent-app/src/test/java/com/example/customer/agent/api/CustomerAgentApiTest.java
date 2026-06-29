@@ -183,6 +183,11 @@ class CustomerAgentApiTest {
         assertThat(body.path("riskLevel").asText()).isEqualTo(expectedRiskLevel);
         assertThat(body.path("answer").asText()).isNotBlank();
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo(expectedNextAction);
+        if ("KNOWLEDGE_QA".equals(expectedRoute)) {
+            assertThat(body.path("sources").get(0).asText()).contains("week10/work_v3/datas/data.txt");
+            assertThat(body.path("toolCalls").get(0).path("name").asText()).isEqualTo("retrieve_knowledge");
+            assertThat(body.path("toolCalls").get(0).path("status").asText()).isEqualTo("SUCCEEDED");
+        }
     }
 
     @Test
@@ -272,7 +277,7 @@ class CustomerAgentApiTest {
 
     private static Stream<Arguments> stage2ChatScenarios() {
         return Stream.of(
-                Arguments.of("新手适合学企业级 AI Agent 课程吗？", "trace-stage2-knowledge", "KNOWLEDGE_QA", "READ_ONLY", "等待 RAG 知识库接入"),
+                Arguments.of("新手适合学企业级 AI Agent 课程吗？", "trace-stage2-knowledge", "KNOWLEDGE_QA", "READ_ONLY", "展示知识库来源"),
                 Arguments.of("帮我查询订单 order-1001 什么时候开课", "trace-stage2-order", "ORDER_LOOKUP", "READ_ONLY", "展示订单状态"),
                 Arguments.of("我要转人工客服", "trace-stage2-handoff", "HUMAN_HANDOFF", "LOW_RISK_WRITE", "记录人工转接意向"),
                 Arguments.of("订单 order-1001 可以退款吗？", "trace-stage2-refund", "REFUND_OR_CANCEL", "HIGH_RISK", "创建人工审批请求"));

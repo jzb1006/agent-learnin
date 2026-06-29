@@ -6,12 +6,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.intent.IntentRouter;
 import com.example.customer.agent.order.MockOrderRepository;
+import com.example.customer.agent.rag.KnowledgeDocumentLoader;
+import com.example.customer.agent.rag.KnowledgeDocumentSplitter;
+import com.example.customer.agent.rag.KnowledgeRetrievalService;
+import com.example.customer.agent.rag.LocalKnowledgeEmbeddingModel;
 import com.example.customer.agent.tool.OrderLookupTool;
 import com.example.customer.agent.tool.RefundPolicyCheckTool;
+import com.example.customer.agent.tool.RetrieveKnowledgeTool;
 import com.example.customer.domain.trace.ConversationRoute;
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
 
 class ChatServiceModelClientTest {
 
@@ -157,9 +164,18 @@ class ChatServiceModelClientTest {
 
         assertThat(response.route()).isEqualTo(ConversationRoute.KNOWLEDGE_QA.name());
         assertThat(response.riskLevel()).isEqualTo("READ_ONLY");
-        assertThat(response.answer()).contains("知识库");
-        assertThat(response.sources()).isEmpty();
-        assertThat(response.nextActions()).contains("等待 RAG 知识库接入");
+        assertThat(response.answer()).contains("不建议完全零基础学员");
+        assertThat(response.sources()).contains("week10/work_v3/datas/data.txt#Q1-Q6");
+        assertThat(response.nextActions()).contains("展示知识库来源");
+        assertThat(response.toolCalls()).singleElement()
+                .satisfies(toolCall -> {
+                    assertThat(toolCall.name()).isEqualTo("retrieve_knowledge");
+                    assertThat(toolCall.arguments()).containsEntry("tenantId", "default");
+                    assertThat(toolCall.arguments()).containsEntry("query", "新手适合学企业级 AI Agent 课程吗？");
+                    assertThat(toolCall.status()).isEqualTo("SUCCEEDED");
+                    assertThat(toolCall.riskLevel()).isEqualTo("READ_ONLY");
+                    assertThat(toolCall.resultSummary()).contains("课程适合哪些学员");
+                });
     }
 
     @Test
@@ -188,7 +204,18 @@ class ChatServiceModelClientTest {
                 new IntentRouter(),
                 new CustomerAgentResponseParser(new tools.jackson.databind.ObjectMapper()),
                 new OrderLookupTool(orderRepository),
-                new RefundPolicyCheckTool(orderRepository));
+                new RefundPolicyCheckTool(orderRepository),
+                retrieveKnowledgeTool());
+    }
+
+    private static RetrieveKnowledgeTool retrieveKnowledgeTool() {
+        var service = new KnowledgeRetrievalService(
+                SimpleVectorStore.builder(new LocalKnowledgeEmbeddingModel()).build(),
+                new KnowledgeDocumentLoader(Path.of("../knowledge-base")),
+                new KnowledgeDocumentSplitter());
+        var tool = new RetrieveKnowledgeTool(service);
+        tool.reindex();
+        return tool;
     }
 
     private static final class RecordingChatModelClient implements CustomerChatModelClient {

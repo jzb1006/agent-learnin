@@ -36,6 +36,11 @@ public class CustomerAgentProperties {
     private ChatModel chatModel = new ChatModel();
 
     /**
+     * 知识库配置。
+     */
+    private KnowledgeBase knowledgeBase = new KnowledgeBase();
+
+    /**
      * 控制客服对话是否调用真实 ChatModel。
      *
      * @author jiangzhibin
@@ -48,5 +53,32 @@ public class CustomerAgentProperties {
          * 是否启用真实模型调用。
          */
         private boolean enabled;
+    }
+
+    /**
+     * 控制本地知识库加载与检索。
+     *
+     * @author jiangzhibin
+     * @since 2026-06-29 20:15:00
+     */
+    @Data
+    public static class KnowledgeBase {
+
+        /**
+         * 本地 Markdown 知识库根目录。
+         */
+        @NotBlank
+        private String rootDirectory = "../knowledge-base";
+
+        /**
+         * 本地默认知识租户。
+         */
+        @NotBlank
+        private String defaultTenantId = "default";
+
+        /**
+         * 默认召回条数。
+         */
+        private int topK = 3;
     }
 }

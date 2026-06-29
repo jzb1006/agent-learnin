@@ -42,3 +42,7 @@ customer-agent:
   trace-id-prefix: trace
   chat-model:
     enabled: ${CUSTOMER_AGENT_CHAT_MODEL_ENABLED:false}
+  knowledge-base:
+    root-directory: ${CUSTOMER_AGENT_KNOWLEDGE_BASE_ROOT:../knowledge-base}
+    default-tenant-id: default
+    top-k: 3

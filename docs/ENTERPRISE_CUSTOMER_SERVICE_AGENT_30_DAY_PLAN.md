@@ -132,6 +132,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 14 | 已完成 | 2026-06-29 | [实现退款政策检查工具](day-14-refund-policy-check-tool.md) |
 | Day 15 | 已完成 | 2026-06-29 | [Tool Calling 集成](day-15-tool-calling-integration.md) |
 | Day 16 | 已完成 | 2026-06-29 | [整理知识库结构](day-16-knowledge-base-structure.md) |
+| Day 17 | 已完成 | 2026-06-29 | [接入 Spring AI RAG](day-17-spring-ai-rag.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
@@ -523,16 +524,19 @@ knowledge-base/
 
 目标：
 
+- 将 Day 17 的 `LocalKnowledgeEmbeddingModel` 替换为真实 `EmbeddingModel`，避免继续使用本地 hash / n-gram 占位向量判断语义质量。
 - 从本地简单检索升级为可生产化向量库。
 
 产物：
 
+- 真实 EmbeddingModel 配置与可切换 fallback 策略
 - PostgreSQL / pgvector 配置
 - Docker Compose
 - pgvector 和索引初始化 SQL 脚本
 
 验收：
 
+- 重新索引时使用真实 EmbeddingModel 生成向量，`LocalKnowledgeEmbeddingModel` 只保留为测试或离线 fallback。
 - 远程 PostgreSQL 通过人工执行 SQL 脚本后，可完成向量写入和检索。
 
 ### Day 19：多租户隔离
