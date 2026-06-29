@@ -11,6 +11,15 @@ Day 03 已补齐核心领域模型：
 - `ApprovalRequest`
 - `ToolRiskLevel`
 
+Day 11 已补齐工具契约模型：
+
+- `ToolDefinition`
+- `ToolParameterSchema`
+- `ToolParameterType`
+- `ToolPermission`
+- `ToolResult`
+- `ToolResultStatus`
+
 ## 边界
 
 当前模块只表达领域语义，不绑定 Spring Web、Spring AI、MCP、JPA 或 JDBC。
@@ -22,7 +31,7 @@ Day 03 已补齐核心领域模型：
 | `knowledge` | FAQ / 政策 / 产品知识条目的租户归属和启停 |
 | `trace` | 对话路由、工具调用记录和不可变 trace |
 | `approval` | 高风险动作审批请求 |
-| `tool` | 工具风险级别 |
+| `tool` | 工具定义、参数 schema、风险级别、权限策略和执行结果 |
 | `support` | 领域内通用校验 |
 
 ## 验证
@@ -39,3 +48,5 @@ mvn -pl customer-domain test
 - trace 追加工具调用时保持原对象不变。
 - 高风险动作必须进入审批。
 - 只读工具不能创建审批请求。
+- 工具定义必须包含名称、描述、参数 schema、风险等级和权限。
+- 工具失败结果必须带明确错误码和错误信息。

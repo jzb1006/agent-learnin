@@ -126,6 +126,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 08 | 已完成 | 2026-06-27 | [实现意图识别](day-08-intent-routing.md) |
 | Day 09 | 已完成 | 2026-06-27 | [实现结构化客服回复](day-09-structured-agent-response.md) |
 | Day 10 | 已完成 | 2026-06-29 | [阶段 2 集成验证](day-10-stage2-integration-validation.md) |
+| Day 11 | 已完成 | 2026-06-29 | [定义工具契约](day-11-tool-contract.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
