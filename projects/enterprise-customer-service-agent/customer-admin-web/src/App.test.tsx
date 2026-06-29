@@ -57,6 +57,10 @@ describe('App', () => {
     expect(html).toContain('Service UP');
     expect(html).toContain('order-1001');
     expect(html).toContain('企业级 AI Agent 实战营');
+    expect(html).toContain('Request Inspector');
+    expect(html).toContain('Route');
+    expect(html).toContain('Risk Level');
+    expect(html).toContain('Trace ID');
     expect(html).toContain('ORDER_LOOKUP');
     expect(html).toContain('READ_ONLY');
   });
@@ -90,6 +94,14 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('模型回复：订单已支付，下周一开课。')).toBeTruthy());
     expect(screen.getByText('trace-live')).toBeTruthy();
+    expect(screen.getByText('Request Inspector')).toBeTruthy();
+    expect(screen.getByText('Route')).toBeTruthy();
+    expect(screen.getByText('ORDER_LOOKUP')).toBeTruthy();
+    expect(screen.getByText('Risk Level')).toBeTruthy();
+    expect(screen.getByText('READ_ONLY')).toBeTruthy();
+    expect(screen.getByText('Trace ID')).toBeTruthy();
+    expect(screen.getByText('Next Actions')).toBeTruthy();
+    expect(screen.getByText('展示订单状态')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
       '/chat',
       expect.objectContaining({

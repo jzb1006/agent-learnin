@@ -32,10 +32,20 @@ npm run build
 npm run dev
 ```
 
-开发代理默认转发到 `http://127.0.0.1:8080`，本地联调时先启动 `customer-agent-app`：
+开发代理默认转发到 `http://127.0.0.1:8080`，可通过 `CUSTOMER_AGENT_API_BASE_URL` 覆盖。联调时先启动 `customer-agent-app`：
 
 ```bash
 cd ..
 mvn -pl customer-agent-app -am package -DskipTests
 java -jar customer-agent-app/target/customer-agent-app-0.1.0-SNAPSHOT.jar
+```
+
+如果 8080 已被其他本地进程占用，可以改用独立端口：
+
+```bash
+cd ..
+java -jar customer-agent-app/target/customer-agent-app-0.1.0-SNAPSHOT.jar --server.port=18080
+
+cd customer-admin-web
+CUSTOMER_AGENT_API_BASE_URL=http://127.0.0.1:18080 npm run dev -- --port 5174
 ```

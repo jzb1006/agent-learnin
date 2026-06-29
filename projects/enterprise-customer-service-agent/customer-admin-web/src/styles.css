@@ -87,9 +87,17 @@ body {
   border-left: 1px solid #e5e7eb;
 }
 
+.request-inspector {
+  max-width: 760px;
+}
+
+.request-inspector .ant-descriptions-item-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .reply-text {
   max-width: 760px;
-  margin-top: 16px;
   margin-bottom: 0;
   color: #111827;
   line-height: 1.7;

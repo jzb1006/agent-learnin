@@ -11,7 +11,6 @@ import {
   Empty,
   Input,
   Layout,
-  Space,
   Tag,
   Typography
 } from 'antd';
@@ -202,11 +201,23 @@ function DebugDashboard() {
               <div className="chat-result">
                 {chatError ? <Alert message={chatError} showIcon type="error" /> : null}
 
-                <Space wrap>
-                  <Tag color="geekblue">{chat.route}</Tag>
-                  <Tag color="green">{chat.riskLevel}</Tag>
-                  <Tag>{chat.traceId}</Tag>
-                </Space>
+                <section className="request-inspector" aria-label="Request Inspector">
+                  <Typography.Title level={3}>Request Inspector</Typography.Title>
+                  <Descriptions column={1} size="small">
+                    <Descriptions.Item label="Route">
+                      <Tag color="geekblue">{chat.route}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Risk Level">
+                      <Tag color={chat.riskLevel === 'HIGH_RISK' ? 'red' : 'green'}>{chat.riskLevel}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Trace ID">
+                      <Typography.Text code>{chat.traceId}</Typography.Text>
+                    </Descriptions.Item>
+                  </Descriptions>
+                </section>
+
+                <Divider className="compact-divider" />
+                <Typography.Title level={3}>Answer</Typography.Title>
                 <Typography.Paragraph className="reply-text">{chat.answer}</Typography.Paragraph>
 
                 <Divider className="compact-divider" />

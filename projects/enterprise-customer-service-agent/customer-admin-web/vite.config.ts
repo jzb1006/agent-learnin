@@ -1,12 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const apiBaseUrl = process.env.CUSTOMER_AGENT_API_BASE_URL ?? 'http://127.0.0.1:8080';
+
 export default defineConfig({
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:8080',
-      '/chat': 'http://127.0.0.1:8080',
-      '/health': 'http://127.0.0.1:8080'
+      '/api': apiBaseUrl,
+      '/chat': apiBaseUrl,
+      '/health': apiBaseUrl
     }
   },
   plugins: [react()],

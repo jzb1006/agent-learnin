@@ -12,7 +12,11 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -147,6 +151,33 @@ class CustomerAgentApiTest {
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo("展示订单状态");
     }
 
+    @ParameterizedTest
+    @MethodSource("stage2ChatScenarios")
+    void shouldRouteStage2ChatScenariosThroughChatApi(
+            String message,
+            String traceId,
+            String expectedRoute,
+            String expectedRiskLevel,
+            String expectedNextAction) throws Exception {
+        var requestBody = """
+                {
+                  "tenantId": "tenant-demo",
+                  "message": "%s"
+                }
+                """.formatted(message);
+
+        var response = post("/chat", requestBody, traceId);
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("X-Trace-Id")).hasValue(traceId);
+        assertThat(body.path("traceId").asText()).isEqualTo(traceId);
+        assertThat(body.path("route").asText()).isEqualTo(expectedRoute);
+        assertThat(body.path("riskLevel").asText()).isEqualTo(expectedRiskLevel);
+        assertThat(body.path("answer").asText()).isNotBlank();
+        assertThat(body.path("nextActions").get(0).asText()).isEqualTo(expectedNextAction);
+    }
+
     @Test
     void shouldReturnRefundOrCancelRouteFromChatResponse() throws Exception {
         var requestBody = """
@@ -225,5 +256,13 @@ class CustomerAgentApiTest {
 
     private JsonNode json(String body) throws Exception {
         return objectMapper.readTree(new StringReader(body));
+    }
+
+    private static Stream<Arguments> stage2ChatScenarios() {
+        return Stream.of(
+                Arguments.of("新手适合学企业级 AI Agent 课程吗？", "trace-stage2-knowledge", "KNOWLEDGE_QA", "READ_ONLY", "等待 RAG 知识库接入"),
+                Arguments.of("帮我查询订单 order-1001 什么时候开课", "trace-stage2-order", "ORDER_LOOKUP", "READ_ONLY", "展示订单状态"),
+                Arguments.of("我要转人工客服", "trace-stage2-handoff", "HUMAN_HANDOFF", "LOW_RISK_WRITE", "记录人工转接意向"),
+                Arguments.of("订单 order-1001 可以退款吗？", "trace-stage2-refund", "REFUND_OR_CANCEL", "HIGH_RISK", "进入人工审批前置判断"));
     }
 }
