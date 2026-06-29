@@ -1,6 +1,8 @@
 package com.example.customer.agent.order;
 
 import com.example.customer.domain.order.CustomerOrder;
+import com.example.customer.domain.order.OrderStatus;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -24,7 +26,30 @@ public class MockOrderRepository {
                     "tenant-demo",
                     "customer-1001",
                     "企业级 AI Agent 实战营",
-                    Instant.parse("2026-06-01T10:00:00Z")));
+                    Instant.now().minus(Duration.ofDays(7))),
+            "order-legacy-paid",
+            CustomerOrder.paid(
+                    "order-legacy-paid",
+                    "tenant-demo",
+                    "customer-1002",
+                    "企业级 AI Agent 架构班",
+                    Instant.now().minus(Duration.ofDays(120))),
+            "order-refunded",
+            new CustomerOrder(
+                    "order-refunded",
+                    "tenant-demo",
+                    "customer-1003",
+                    "企业级 AI Agent 实战营",
+                    OrderStatus.REFUNDED,
+                    Instant.now().minus(Duration.ofDays(7))),
+            "order-cancelled",
+            new CustomerOrder(
+                    "order-cancelled",
+                    "tenant-demo",
+                    "customer-1004",
+                    "企业级 AI Agent 实战营",
+                    OrderStatus.CANCELLED,
+                    Instant.now().minus(Duration.ofDays(7))));
 
     /**
      * 根据订单标识查询 mock 订单。
