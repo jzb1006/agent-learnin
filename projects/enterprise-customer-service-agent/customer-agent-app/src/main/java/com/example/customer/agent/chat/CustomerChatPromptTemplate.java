@@ -21,6 +21,15 @@ public class CustomerChatPromptTemplate {
             3. 必须基于工具、知识库或用户输入证据生成回复；证据不足时说明需要继续确认或转人工。
             4. 高风险动作必须进入审批，不得绕过人工确认直接执行。
             5. 回复保持简洁、专业，面向客服场景给出下一步建议。
+            6. 只返回 JSON object，不要输出 Markdown、代码块或额外解释。
+
+            JSON 字段：
+            - route：必须照抄事实证据中的 route。
+            - answer：面向用户的客服回复。
+            - sources：必须照抄事实证据中的 sources；没有证据时返回空数组。
+            - riskLevel：必须照抄事实证据中的 riskLevel。
+            - nextActions：字符串数组，给出下一步建议。
+            - traceId：必须照抄事实证据中的 traceId；服务端会用请求 traceId 覆盖该字段。
             """;
 
     /**

@@ -31,19 +31,21 @@ public class ChatService {
     private final CustomerAgentProperties properties;
     private final CustomerChatModelClient chatModelClient;
     private final IntentRouter intentRouter;
+    private final CustomerAgentResponseParser responseParser;
 
     /**
      * 生成基础结构化客服回复。
      *
      * @param request 对话请求
-     * @return 对话响应
+     * @return 客服 Agent 结构化响应
      */
-    public ChatResponse reply(ChatRequest request) {
+    public CustomerAgentResponse reply(ChatRequest request) {
         var message = request.message() == null ? "" : request.message();
         var routeResult = intentRouter.route(message);
         var orderId = orderIdFor(routeResult);
         var orderResponse = orderId == null ? null : OrderResponse.from(orderLookupService.getOrder(orderId));
         var riskLevel = riskLevelFor(routeResult.route());
+        var traceId = RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
         log.info(
                 "chat_reply_start tenantId={} route={} orderId={} messageLength={} modelEnabled={}",
                 request.tenantId(),
@@ -51,11 +53,9 @@ public class ChatService {
                 orderId,
                 message.length(),
                 properties.getChatModel().isEnabled());
-        var deterministicReply = deterministicReply(routeResult, orderResponse);
-        var reply = properties.getChatModel().isEnabled() && routeResult.route() == ConversationRoute.ORDER_LOOKUP
-                ? modelReply(request.tenantId(), message, orderResponse)
-                : deterministicReply;
-        var traceId = RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
+        var response = properties.getChatModel().isEnabled() && routeResult.route() == ConversationRoute.ORDER_LOOKUP
+                ? modelResponse(request.tenantId(), message, orderResponse, routeResult.route(), riskLevel, traceId)
+                : deterministicResponse(routeResult, orderResponse, riskLevel, traceId);
 
         log.info(
                 "chat_reply_success tenantId={} orderId={} route={} riskLevel={} traceId={}",
@@ -64,13 +64,7 @@ public class ChatService {
                 routeResult.route().name(),
                 riskLevel.name(),
                 traceId);
-        return new ChatResponse(
-                traceId,
-                routeResult.route().name(),
-                riskLevel.name(),
-                reply,
-                orderResponse,
-                nextActionsFor(routeResult.route()));
+        return response;
     }
 
     private String orderIdFor(IntentRouteResult routeResult) {
@@ -91,7 +85,21 @@ public class ChatService {
         };
     }
 
-    private String deterministicReply(IntentRouteResult routeResult, OrderResponse order) {
+    private CustomerAgentResponse deterministicResponse(
+            IntentRouteResult routeResult,
+            OrderResponse order,
+            ToolRiskLevel riskLevel,
+            String traceId) {
+        return new CustomerAgentResponse(
+                routeResult.route().name(),
+                deterministicAnswer(routeResult, order),
+                sourcesFor(order),
+                riskLevel.name(),
+                nextActionsFor(routeResult.route()),
+                traceId);
+    }
+
+    private String deterministicAnswer(IntentRouteResult routeResult, OrderResponse order) {
         return switch (routeResult.route()) {
             case ORDER_LOOKUP -> "已查询到订单 " + order.id() + "，课程为「" + order.productName()
                     + "」，当前状态为 " + order.status() + "。";
@@ -100,6 +108,10 @@ public class ChatService {
             case HUMAN_HANDOFF -> "已识别到人工客服诉求。当前只记录人工转接意向，不创建外部真实工单。";
             case DIRECT -> "已收到你的问题。当前未命中订单、知识库、退款取消或人工转接意图，可先按普通客服问题处理。";
         };
+    }
+
+    private List<String> sourcesFor(OrderResponse order) {
+        return order == null ? List.of() : List.of("order:" + order.id());
     }
 
     private List<String> nextActionsFor(ConversationRoute route) {
@@ -112,17 +124,81 @@ public class ChatService {
         };
     }
 
-    private String modelReply(String tenantId, String message, OrderResponse order) {
+    private CustomerAgentResponse modelResponse(
+            String tenantId,
+            String message,
+            OrderResponse order,
+            ConversationRoute expectedRoute,
+            ToolRiskLevel expectedRiskLevel,
+            String traceId) {
         try {
             log.info("chat_model_reply_start tenantId={} orderId={}", tenantId, order.id());
-            return chatModelClient.generateReply(new CustomerChatPrompt(
+            var rawResponse = chatModelClient.generateReply(new CustomerChatPrompt(
                     tenantId,
                     message,
-                    "订单 " + order.id() + "，课程「" + order.productName() + "」，状态 " + order.status()));
+                    modelEvidence(order, expectedRoute, expectedRiskLevel, traceId)));
+            var parsed = responseParser.parse(rawResponse);
+            requireModelMetadataMatchesJavaDecision(parsed, expectedRoute, expectedRiskLevel);
+            return new CustomerAgentResponse(
+                    expectedRoute.name(),
+                    parsed.answer(),
+                    parsed.sources(),
+                    expectedRiskLevel.name(),
+                    parsed.nextActions(),
+                    traceId);
+        } catch (CustomerAgentResponseParseException exception) {
+            log.warn(
+                    "chat_model_reply_invalid tenantId={} orderId={} reason={}",
+                    tenantId,
+                    order.id(),
+                    exception.getMessage());
+            return deterministicResponse(
+                    new IntentRouteResult(expectedRoute, order.id(), 1.0, "模型结构化响应不合规，使用 Java 层确定性回复"),
+                    order,
+                    expectedRiskLevel,
+                    traceId);
         } catch (ChatModelException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             throw new ChatModelException("模型调用失败", exception);
+        }
+    }
+
+    private String modelEvidence(
+            OrderResponse order,
+            ConversationRoute expectedRoute,
+            ToolRiskLevel expectedRiskLevel,
+            String traceId) {
+        return """
+                route=%s
+                riskLevel=%s
+                sources=%s
+                traceId=%s
+                订单 %s，课程「%s」，状态 %s
+                """.formatted(
+                expectedRoute.name(),
+                expectedRiskLevel.name(),
+                sourcesFor(order),
+                traceId,
+                order.id(),
+                order.productName(),
+                order.status()).strip();
+    }
+
+    private void requireModelMetadataMatchesJavaDecision(
+            CustomerAgentResponse parsed,
+            ConversationRoute expectedRoute,
+            ToolRiskLevel expectedRiskLevel) {
+        if (!expectedRoute.name().equals(parsed.route())) {
+            throw new CustomerAgentResponseParseException(
+                    "route 字段与 Java 路由不一致：expected=" + expectedRoute.name() + ", actual=" + parsed.route());
+        }
+        if (!expectedRiskLevel.name().equals(parsed.riskLevel())) {
+            throw new CustomerAgentResponseParseException(
+                    "riskLevel 字段与 Java 风险级别不一致：expected="
+                            + expectedRiskLevel.name()
+                            + ", actual="
+                            + parsed.riskLevel());
         }
     }
 }

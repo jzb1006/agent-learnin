@@ -15,7 +15,14 @@ class CustomerChatPromptTemplateTest {
                 .contains("不得编造订单状态")
                 .contains("不得承诺真实退款成功")
                 .contains("必须基于工具、知识库或用户输入证据")
-                .contains("高风险动作必须进入审批");
+                .contains("高风险动作必须进入审批")
+                .contains("只返回 JSON object")
+                .contains("route")
+                .contains("answer")
+                .contains("sources")
+                .contains("riskLevel")
+                .contains("nextActions")
+                .contains("traceId");
     }
 
     @Test

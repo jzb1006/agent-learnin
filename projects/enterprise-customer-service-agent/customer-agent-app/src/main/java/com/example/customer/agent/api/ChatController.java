@@ -1,7 +1,7 @@
 package com.example.customer.agent.api;
 
 import com.example.customer.agent.chat.ChatRequest;
-import com.example.customer.agent.chat.ChatResponse;
+import com.example.customer.agent.chat.CustomerAgentResponse;
 import com.example.customer.agent.chat.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class ChatController {
      * @return 结构化对话响应
      */
     @PostMapping("/chat")
-    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+    public CustomerAgentResponse chat(@Valid @RequestBody ChatRequest request) {
         log.info("chat_api_request tenantId={} messageLength={}", request.tenantId(), request.message().length());
         return chatService.reply(request);
     }

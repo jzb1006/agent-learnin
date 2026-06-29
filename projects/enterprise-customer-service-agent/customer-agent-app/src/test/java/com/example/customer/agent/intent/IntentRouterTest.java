@@ -28,6 +28,15 @@ class IntentRouterTest {
     }
 
     @Test
+    void shouldRouteOrderNumberQuestionToOrderLookupWithoutOrderId() {
+        var result = router.route("我的订单号是多少");
+
+        assertThat(result.route()).isEqualTo(ConversationRoute.ORDER_LOOKUP);
+        assertThat(result.orderId()).isNull();
+        assertThat(result.reason()).contains("订单");
+    }
+
+    @Test
     void shouldPreferRefundOrCancelOverOrderLookupWhenMessageContainsBoth() {
         var result = router.route("订单 order-1001 可以退款吗？");
 

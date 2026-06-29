@@ -12,7 +12,7 @@ Day 04 已接入基础 API 调试快照：
 
 - Health：展示 `GET /health` 状态。
 - Order Debug：展示 `GET /api/orders/order-1001` 结果。
-- Chat Console：展示 `POST /chat` 的 route、riskLevel、traceId、reply 和 nextActions。
+- Chat Console：展示 `POST /chat` 的 route、riskLevel、traceId、answer、sources 和 nextActions。
 
 后续逐步加入：
 

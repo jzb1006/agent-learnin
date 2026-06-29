@@ -8,16 +8,18 @@ const chatResponse = {
   traceId: 'trace-live',
   route: 'ORDER_LOOKUP',
   riskLevel: 'READ_ONLY',
-  reply: '模型回复：订单已支付，下周一开课。',
-  order: {
-    id: 'order-1001',
-    tenantId: 'tenant-demo',
-    customerId: 'customer-1001',
-    productName: '企业级 AI Agent 实战营',
-    status: 'PAID',
-    paidAt: '2026-06-01T10:00:00Z'
-  },
+  answer: '模型回复：订单已支付，下周一开课。',
+  sources: ['order:order-1001'],
   nextActions: ['展示订单状态', '等待用户继续追问']
+};
+
+const orderResponse = {
+  id: 'order-1001',
+  tenantId: 'tenant-demo',
+  customerId: 'customer-1001',
+  productName: '企业级 AI Agent 实战营',
+  status: 'PAID',
+  paidAt: '2026-06-01T10:00:00Z'
 };
 
 beforeAll(() => {
@@ -66,7 +68,7 @@ describe('App', () => {
         return jsonResponse({ status: 'UP', service: 'customer-agent-app' });
       }
       if (path === '/api/orders/order-1001') {
-        return jsonResponse(chatResponse.order);
+        return jsonResponse(orderResponse);
       }
       if (path === '/chat') {
         expect(init?.method).toBe('POST');

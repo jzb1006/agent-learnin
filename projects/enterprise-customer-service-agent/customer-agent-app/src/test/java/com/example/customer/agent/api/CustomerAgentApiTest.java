@@ -142,8 +142,8 @@ class CustomerAgentApiTest {
         assertThat(body.path("traceId").asText()).isEqualTo("trace-chat-test");
         assertThat(body.path("route").asText()).isEqualTo("ORDER_LOOKUP");
         assertThat(body.path("riskLevel").asText()).isEqualTo("READ_ONLY");
-        assertThat(body.path("reply").asText()).contains("企业级 AI Agent 实战营");
-        assertThat(body.path("order").path("id").asText()).isEqualTo("order-1001");
+        assertThat(body.path("answer").asText()).contains("企业级 AI Agent 实战营");
+        assertThat(body.path("sources").get(0).asText()).isEqualTo("order:order-1001");
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo("展示订单状态");
     }
 
@@ -163,8 +163,8 @@ class CustomerAgentApiTest {
         assertThat(body.path("traceId").asText()).isEqualTo("trace-refund-intent-test");
         assertThat(body.path("route").asText()).isEqualTo("REFUND_OR_CANCEL");
         assertThat(body.path("riskLevel").asText()).isEqualTo("HIGH_RISK");
-        assertThat(body.path("reply").asText()).contains("不能直接执行退款");
-        assertThat(body.path("order").path("id").asText()).isEqualTo("order-1001");
+        assertThat(body.path("answer").asText()).contains("不能直接执行退款");
+        assertThat(body.path("sources").get(0).asText()).isEqualTo("order:order-1001");
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo("进入人工审批前置判断");
     }
 

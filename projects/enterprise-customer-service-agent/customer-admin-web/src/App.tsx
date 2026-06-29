@@ -33,12 +33,12 @@ type OrderResponse = {
   paidAt: string;
 };
 
-type ChatResponse = {
+type CustomerAgentResponse = {
   traceId: string;
   route: string;
   riskLevel: string;
-  reply: string;
-  order: OrderResponse;
+  answer: string;
+  sources: string[];
   nextActions: string[];
 };
 
@@ -65,12 +65,12 @@ const initialOrder: OrderResponse = {
   paidAt: '2026-06-01T10:00:00Z'
 };
 
-const initialChat: ChatResponse = {
+const initialChat: CustomerAgentResponse = {
   traceId: 'trace-demo',
   route: 'ORDER_LOOKUP',
   riskLevel: 'READ_ONLY',
-  reply: '已查询到订单 order-1001，课程为「企业级 AI Agent 实战营」，当前状态为 PAID。',
-  order: initialOrder,
+  answer: '已查询到订单 order-1001，课程为「企业级 AI Agent 实战营」，当前状态为 PAID。',
+  sources: ['order:order-1001'],
   nextActions: ['展示订单状态', '等待用户继续追问']
 };
 
@@ -114,7 +114,7 @@ function DebugDashboard() {
   });
   const chatMutation = useMutation({
     mutationFn: (payload: ChatRequestPayload) =>
-      requestJson<ChatResponse>('/chat', {
+      requestJson<CustomerAgentResponse>('/chat', {
         method: 'POST',
         body: JSON.stringify(payload)
       }),
@@ -207,18 +207,16 @@ function DebugDashboard() {
                   <Tag color="green">{chat.riskLevel}</Tag>
                   <Tag>{chat.traceId}</Tag>
                 </Space>
-                <Typography.Paragraph className="reply-text">{chat.reply}</Typography.Paragraph>
+                <Typography.Paragraph className="reply-text">{chat.answer}</Typography.Paragraph>
 
                 <Divider className="compact-divider" />
-                <Typography.Title level={3}>Order Evidence</Typography.Title>
-                {chat.order ? (
-                  <Descriptions column={1} size="small">
-                    <Descriptions.Item label="Order">{chat.order.id}</Descriptions.Item>
-                    <Descriptions.Item label="Product">{chat.order.productName}</Descriptions.Item>
-                    <Descriptions.Item label="Status">
-                      <Tag color="blue">{chat.order.status}</Tag>
-                    </Descriptions.Item>
-                  </Descriptions>
+                <Typography.Title level={3}>Sources</Typography.Title>
+                {chat.sources.length > 0 ? (
+                  <ul className="next-actions">
+                    {chat.sources.map((source) => (
+                      <li key={source}>{source}</li>
+                    ))}
+                  </ul>
                 ) : (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 )}

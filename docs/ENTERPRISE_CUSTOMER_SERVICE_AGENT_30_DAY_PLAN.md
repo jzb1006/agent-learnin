@@ -124,6 +124,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 06 | 已完成 | 2026-06-27 | [接入 Spring AI ChatClient](day-06-spring-ai-chat-client.md) |
 | Day 07 | 已完成 | 2026-06-27 | [设计客服 Agent Prompt](day-07-customer-agent-prompt.md) |
 | Day 08 | 已完成 | 2026-06-27 | [实现意图识别](day-08-intent-routing.md) |
+| Day 09 | 已完成 | 2026-06-27 | [实现结构化客服回复](day-09-structured-agent-response.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
