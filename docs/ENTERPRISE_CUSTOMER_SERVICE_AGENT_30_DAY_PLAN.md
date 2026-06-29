@@ -128,6 +128,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 10 | 已完成 | 2026-06-29 | [阶段 2 集成验证](day-10-stage2-integration-validation.md) |
 | Day 11 | 已完成 | 2026-06-29 | [定义工具契约](day-11-tool-contract.md) |
 | Day 12 | 已完成 | 2026-06-29 | [实现订单查询工具](day-12-order-lookup-tool.md) |
+| Day 13 | 已完成 | 2026-06-29 | [实现知识目录与人工转接工具](day-13-course-catalog-handoff-tools.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
