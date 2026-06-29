@@ -35,4 +35,16 @@ public class MockOrderRepository {
     public Optional<CustomerOrder> findById(String orderId) {
         return Optional.ofNullable(ORDERS.get(orderId));
     }
+
+    /**
+     * 根据订单标识和租户标识查询 mock 订单。
+     *
+     * @param orderId 订单标识
+     * @param tenantId 租户标识
+     * @return 订单
+     */
+    public Optional<CustomerOrder> findByIdAndTenantId(String orderId, String tenantId) {
+        return findById(orderId)
+                .filter(order -> order.tenantId().equals(tenantId));
+    }
 }

@@ -5,22 +5,25 @@ Spring Boot 应用入口模块，后续负责：
 - `/chat`
 - `/health`
 - 订单查询 API
+- 订单查询工具
 - Agent 编排
 - Trace 写入
 - 调试台 API
 
-Day 04 已实现基础 REST API，Day 06 已接入 Spring AI ChatClient 的最小业务边界，Day 07 已把客服 Prompt 收敛为可版本化、可测试的行为契约，Day 08 已补 `/chat` 本地意图识别 fallback，Day 09 已统一结构化客服响应：
+Day 04 已实现基础 REST API，Day 06 已接入 Spring AI ChatClient 的最小业务边界，Day 07 已把客服 Prompt 收敛为可版本化、可测试的行为契约，Day 08 已补 `/chat` 本地意图识别 fallback，Day 09 已统一结构化客服响应，Day 12 已实现只读订单查询工具：
 
 | 接口 | 当前行为 |
 | --- | --- |
 | `GET /health` | 返回 `status=UP` 和 `service=customer-agent-app` |
 | `GET /api/orders/{orderId}` | 返回内存 mock 订单；不存在时返回 `ORDER_NOT_FOUND` |
 | `POST /chat` | 先经 `IntentRouter` 分流到 `KNOWLEDGE_QA`、`ORDER_LOOKUP`、`REFUND_OR_CANCEL`、`HUMAN_HANDOFF` 或 `DIRECT`；统一返回 `route / answer / sources / riskLevel / nextActions / traceId` |
+| `order_lookup(orderId, tenantId)` | 只读工具；同租户返回订单摘要，订单不存在或跨租户查询返回 `ORDER_NOT_FOUND` |
 
 当前边界：
 
 - 不接真实数据库。
 - 默认不调用真实 LLM；启用模型必须通过环境变量配置。
+- `order_lookup` 暂未接入 `/chat`，Agent 自动选择工具属于后续 Day 15。
 - 不调用 MCP Server。
 - 不执行真实退款、取消或改签。
 - 不创建真实人工客服工单。
@@ -159,6 +162,13 @@ mvn -pl customer-agent-app -am -Dtest=IntentRouterTest -Dsurefire.failIfNoSpecif
 ```bash
 cd ..
 mvn -pl customer-agent-app -Dtest=CustomerAgentResponseParserTest,ChatServiceModelClientTest test
+```
+
+订单工具定向测试：
+
+```bash
+cd ..
+mvn -pl customer-agent-app -am -Dtest=OrderLookupToolTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
 本地启动：
