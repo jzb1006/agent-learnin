@@ -128,6 +128,55 @@ body {
   line-height: 1.6;
 }
 
+.tool-calls {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tool-call-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.tool-call-item:last-child {
+  border-bottom: 0;
+}
+
+.tool-call-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tool-call-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.tool-call-tags .ant-tag {
+  margin-inline-end: 0;
+}
+
+.tool-call-arguments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tool-call-summary {
+  margin-bottom: 0;
+  color: #4b5563;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 640px) {
   .debug-header {
     align-items: flex-start;
@@ -156,5 +205,13 @@ body {
 
   .send-button {
     width: 100%;
+  }
+
+  .tool-call-header {
+    flex-direction: column;
+  }
+
+  .tool-call-tags {
+    justify-content: flex-start;
   }
 }

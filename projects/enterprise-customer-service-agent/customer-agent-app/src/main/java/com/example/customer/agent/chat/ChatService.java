@@ -4,11 +4,16 @@ import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.intent.IntentRouteResult;
 import com.example.customer.agent.intent.IntentRouter;
 import com.example.customer.agent.observability.RequestTraceContext;
-import com.example.customer.agent.order.OrderLookupService;
 import com.example.customer.agent.order.OrderResponse;
+import com.example.customer.agent.tool.OrderLookupTool;
+import com.example.customer.agent.tool.RefundPolicyCheckTool;
+import com.example.customer.domain.tool.ToolResult;
 import com.example.customer.domain.tool.ToolRiskLevel;
 import com.example.customer.domain.trace.ConversationRoute;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +32,12 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ChatService {
 
-    private final OrderLookupService orderLookupService;
     private final CustomerAgentProperties properties;
     private final CustomerChatModelClient chatModelClient;
     private final IntentRouter intentRouter;
     private final CustomerAgentResponseParser responseParser;
+    private final OrderLookupTool orderLookupTool;
+    private final RefundPolicyCheckTool refundPolicyCheckTool;
 
     /**
      * 生成基础结构化客服回复。
@@ -43,9 +49,10 @@ public class ChatService {
         var message = request.message() == null ? "" : request.message();
         var routeResult = intentRouter.route(message);
         var orderId = orderIdFor(routeResult);
-        var orderResponse = orderId == null ? null : OrderResponse.from(orderLookupService.getOrder(orderId));
         var riskLevel = riskLevelFor(routeResult.route());
         var traceId = RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
+        var toolExecution = executeTool(routeResult.route(), orderId, request.tenantId());
+        var orderResponse = toolExecution.order();
         log.info(
                 "chat_reply_start tenantId={} route={} orderId={} messageLength={} modelEnabled={}",
                 request.tenantId(),
@@ -53,9 +60,11 @@ public class ChatService {
                 orderId,
                 message.length(),
                 properties.getChatModel().isEnabled());
-        var response = properties.getChatModel().isEnabled() && routeResult.route() == ConversationRoute.ORDER_LOOKUP
-                ? modelResponse(request.tenantId(), message, orderResponse, routeResult.route(), riskLevel, traceId)
-                : deterministicResponse(routeResult, orderResponse, riskLevel, traceId);
+        var response = properties.getChatModel().isEnabled()
+                        && routeResult.route() == ConversationRoute.ORDER_LOOKUP
+                        && orderResponse != null
+                ? modelResponse(request.tenantId(), message, toolExecution, routeResult.route(), riskLevel, traceId)
+                : deterministicResponse(routeResult, toolExecution, riskLevel, traceId);
 
         log.info(
                 "chat_reply_success tenantId={} orderId={} route={} riskLevel={} traceId={}",
@@ -65,6 +74,61 @@ public class ChatService {
                 riskLevel.name(),
                 traceId);
         return response;
+    }
+
+    private ToolExecution executeTool(ConversationRoute route, String orderId, String tenantId) {
+        if (route == ConversationRoute.ORDER_LOOKUP && orderId != null) {
+            return executeOrderLookup(orderId, tenantId);
+        }
+        if (route == ConversationRoute.REFUND_OR_CANCEL && orderId != null) {
+            return executeRefundPolicyCheck(orderId, tenantId);
+        }
+        return ToolExecution.empty();
+    }
+
+    private ToolExecution executeOrderLookup(String orderId, String tenantId) {
+        var startedAtNanos = System.nanoTime();
+        var toolResult = orderLookupTool.lookup(orderId, tenantId);
+        var durationMs = elapsedMillis(startedAtNanos);
+        var toolCall = toolCall(
+                OrderLookupTool.NAME,
+                Map.of("orderId", orderId, "tenantId", tenantId),
+                ToolRiskLevel.READ_ONLY,
+                durationMs,
+                toolResult);
+        return new ToolExecution(orderFrom(toolResult), toolResult, List.of(toolCall));
+    }
+
+    private ToolExecution executeRefundPolicyCheck(String orderId, String tenantId) {
+        var startedAtNanos = System.nanoTime();
+        var toolResult = refundPolicyCheckTool.check(orderId, tenantId);
+        var durationMs = elapsedMillis(startedAtNanos);
+        var toolCall = toolCall(
+                RefundPolicyCheckTool.NAME,
+                Map.of("orderId", orderId, "tenantId", tenantId),
+                ToolRiskLevel.READ_ONLY,
+                durationMs,
+                toolResult);
+        return new ToolExecution(orderFrom(toolResult), toolResult, List.of(toolCall));
+    }
+
+    private long elapsedMillis(long startedAtNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
+    }
+
+    private CustomerAgentToolCall toolCall(
+            String name,
+            Map<String, String> arguments,
+            ToolRiskLevel riskLevel,
+            long durationMs,
+            ToolResult toolResult) {
+        return new CustomerAgentToolCall(
+                name,
+                arguments,
+                toolResult.status().name(),
+                riskLevel.name(),
+                durationMs,
+                resultSummary(toolResult));
     }
 
     private String orderIdFor(IntentRouteResult routeResult) {
@@ -87,50 +151,93 @@ public class ChatService {
 
     private CustomerAgentResponse deterministicResponse(
             IntentRouteResult routeResult,
-            OrderResponse order,
+            ToolExecution toolExecution,
             ToolRiskLevel riskLevel,
             String traceId) {
         return new CustomerAgentResponse(
                 routeResult.route().name(),
-                deterministicAnswer(routeResult, order),
-                sourcesFor(order),
+                deterministicAnswer(routeResult, toolExecution),
+                sourcesFor(toolExecution),
                 riskLevel.name(),
-                nextActionsFor(routeResult.route()),
-                traceId);
+                nextActionsFor(routeResult.route(), toolExecution.toolResult()),
+                traceId,
+                toolExecution.toolCalls());
     }
 
-    private String deterministicAnswer(IntentRouteResult routeResult, OrderResponse order) {
+    private String deterministicAnswer(IntentRouteResult routeResult, ToolExecution toolExecution) {
+        var order = toolExecution.order();
         return switch (routeResult.route()) {
-            case ORDER_LOOKUP -> "已查询到订单 " + order.id() + "，课程为「" + order.productName()
-                    + "」，当前状态为 " + order.status() + "。";
+            case ORDER_LOOKUP -> orderLookupAnswer(order, toolExecution.toolResult());
             case KNOWLEDGE_QA -> "已识别为知识库问答问题。当前 Day 08 只完成意图识别，知识库回答将在 RAG 接入后提供。";
-            case REFUND_OR_CANCEL -> "已识别到退款、取消或改签诉求，不能直接执行退款或取消操作，后续必须进入人工审批前置判断。";
+            case REFUND_OR_CANCEL -> refundPolicyAnswer(toolExecution.toolResult());
             case HUMAN_HANDOFF -> "已识别到人工客服诉求。当前只记录人工转接意向，不创建外部真实工单。";
             case DIRECT -> "已收到你的问题。当前未命中订单、知识库、退款取消或人工转接意图，可先按普通客服问题处理。";
         };
     }
 
-    private List<String> sourcesFor(OrderResponse order) {
-        return order == null ? List.of() : List.of("order:" + order.id());
+    private String orderLookupAnswer(OrderResponse order, ToolResult toolResult) {
+        if (order == null) {
+            return "未查询到可用于回复的订单证据：%s。".formatted(resultSummary(toolResult));
+        }
+        return "已查询到订单 " + order.id() + "，课程为「" + order.productName()
+                + "」，当前状态为 " + order.status() + "。";
     }
 
-    private List<String> nextActionsFor(ConversationRoute route) {
+    private String refundPolicyAnswer(ToolResult toolResult) {
+        if (toolResult == null || !toolResult.succeeded()) {
+            return "已识别到退款、取消或改签诉求，但未找到可用于政策判断的订单证据，不能直接执行退款或取消操作。";
+        }
+        return "已完成退款政策前置检查，判断为 %s，原因：%s。该工具只返回政策建议，不执行真实退款；后续动作：%s。"
+                .formatted(
+                        toolPayloadText(toolResult, "policyDecision"),
+                        trimTrailingSentencePunctuation(toolPayloadText(toolResult, "reason")),
+                        toolPayloadText(toolResult, "recommendedAction"));
+    }
+
+    private String trimTrailingSentencePunctuation(String value) {
+        return value.replaceAll("[。.!！]+$", "");
+    }
+
+    private List<String> sourcesFor(ToolExecution toolExecution) {
+        if (toolExecution.order() != null) {
+            return List.of("order:" + toolExecution.order().id());
+        }
+        var toolResult = toolExecution.toolResult();
+        if (toolResult != null && toolResult.succeeded() && toolResult.payload().containsKey("orderId")) {
+            return List.of("order:" + toolPayloadText(toolResult, "orderId"));
+        }
+        return List.of();
+    }
+
+    private List<String> nextActionsFor(ConversationRoute route, ToolResult toolResult) {
         return switch (route) {
             case ORDER_LOOKUP -> List.of("展示订单状态", "等待用户继续追问");
             case KNOWLEDGE_QA -> List.of("等待 RAG 知识库接入", "保留用户问题用于后续知识库验证");
-            case REFUND_OR_CANCEL -> List.of("进入人工审批前置判断", "禁止直接执行退款、取消或改签");
+            case REFUND_OR_CANCEL -> refundNextActions(toolResult);
             case HUMAN_HANDOFF -> List.of("记录人工转接意向", "等待后续低风险写工具接入");
             case DIRECT -> List.of("直接回复用户", "必要时继续澄清问题");
+        };
+    }
+
+    private List<String> refundNextActions(ToolResult toolResult) {
+        if (toolResult == null || !toolResult.succeeded()) {
+            return List.of("进入人工审批前置判断", "禁止直接执行退款、取消或改签");
+        }
+        return switch (toolPayloadText(toolResult, "recommendedAction")) {
+            case "CREATE_APPROVAL_REQUEST" -> List.of("创建人工审批请求", "禁止直接执行退款、取消或改签");
+            case "ESCALATE_TO_HUMAN_REVIEW" -> List.of("转人工复核退款政策", "禁止直接执行退款、取消或改签");
+            default -> List.of("解释退款政策", "禁止直接执行退款、取消或改签");
         };
     }
 
     private CustomerAgentResponse modelResponse(
             String tenantId,
             String message,
-            OrderResponse order,
+            ToolExecution toolExecution,
             ConversationRoute expectedRoute,
             ToolRiskLevel expectedRiskLevel,
             String traceId) {
+        var order = toolExecution.order();
         try {
             log.info("chat_model_reply_start tenantId={} orderId={}", tenantId, order.id());
             var rawResponse = chatModelClient.generateReply(new CustomerChatPrompt(
@@ -145,7 +252,8 @@ public class ChatService {
                     parsed.sources(),
                     expectedRiskLevel.name(),
                     parsed.nextActions(),
-                    traceId);
+                    traceId,
+                    toolExecution.toolCalls());
         } catch (CustomerAgentResponseParseException exception) {
             log.warn(
                     "chat_model_reply_invalid tenantId={} orderId={} reason={}",
@@ -154,7 +262,7 @@ public class ChatService {
                     exception.getMessage());
             return deterministicResponse(
                     new IntentRouteResult(expectedRoute, order.id(), 1.0, "模型结构化响应不合规，使用 Java 层确定性回复"),
-                    order,
+                    toolExecution,
                     expectedRiskLevel,
                     traceId);
         } catch (ChatModelException exception) {
@@ -178,7 +286,7 @@ public class ChatService {
                 """.formatted(
                 expectedRoute.name(),
                 expectedRiskLevel.name(),
-                sourcesFor(order),
+                order == null ? List.of() : List.of("order:" + order.id()),
                 traceId,
                 order.id(),
                 order.productName(),
@@ -199,6 +307,50 @@ public class ChatService {
                             + expectedRiskLevel.name()
                             + ", actual="
                             + parsed.riskLevel());
+        }
+    }
+
+    private OrderResponse orderFrom(ToolResult toolResult) {
+        if (!toolResult.succeeded()) {
+            return null;
+        }
+        var payload = toolResult.payload();
+        if (!payload.containsKey("productName") || !payload.containsKey("status")) {
+            return null;
+        }
+        return new OrderResponse(
+                toolPayloadText(toolResult, "orderId"),
+                toolPayloadText(toolResult, "tenantId"),
+                toolPayloadText(toolResult, "customerId"),
+                toolPayloadText(toolResult, "productName"),
+                toolPayloadText(toolResult, "status"),
+                Instant.parse(toolPayloadText(toolResult, "paidAt")));
+    }
+
+    private String toolPayloadText(ToolResult toolResult, String fieldName) {
+        var value = toolResult.payload().get(fieldName);
+        return value == null ? "" : value.toString();
+    }
+
+    private String resultSummary(ToolResult toolResult) {
+        if (!toolResult.succeeded()) {
+            return toolResult.errorCode().orElse("FAILED") + ": "
+                    + toolResult.errorMessage().orElse("工具调用失败");
+        }
+        var payload = toolResult.payload();
+        if (RefundPolicyCheckTool.NAME.equals(toolResult.toolName())) {
+            return "%s -> %s".formatted(payload.get("policyDecision"), payload.get("recommendedAction"));
+        }
+        if (OrderLookupTool.NAME.equals(toolResult.toolName())) {
+            return "%s %s %s".formatted(payload.get("orderId"), payload.get("productName"), payload.get("status"));
+        }
+        return payload.toString();
+    }
+
+    private record ToolExecution(OrderResponse order, ToolResult toolResult, List<CustomerAgentToolCall> toolCalls) {
+
+        private static ToolExecution empty() {
+            return new ToolExecution(null, null, List.of());
         }
     }
 }

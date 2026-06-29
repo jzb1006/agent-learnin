@@ -10,7 +10,20 @@ const chatResponse = {
   riskLevel: 'READ_ONLY',
   answer: '模型回复：订单已支付，下周一开课。',
   sources: ['order:order-1001'],
-  nextActions: ['展示订单状态', '等待用户继续追问']
+  nextActions: ['展示订单状态', '等待用户继续追问'],
+  toolCalls: [
+    {
+      name: 'order_lookup',
+      arguments: {
+        orderId: 'order-1001',
+        tenantId: 'tenant-demo'
+      },
+      status: 'SUCCEEDED',
+      riskLevel: 'READ_ONLY',
+      durationMs: 12,
+      resultSummary: 'order-1001 企业级 AI Agent 实战营 PAID'
+    }
+  ]
 };
 
 const orderResponse = {
@@ -61,6 +74,8 @@ describe('App', () => {
     expect(html).toContain('Route');
     expect(html).toContain('Risk Level');
     expect(html).toContain('Trace ID');
+    expect(html).toContain('Tool Calls');
+    expect(html).toContain('order_lookup');
     expect(html).toContain('ORDER_LOOKUP');
     expect(html).toContain('READ_ONLY');
   });
@@ -98,8 +113,13 @@ describe('App', () => {
     expect(screen.getByText('Route')).toBeTruthy();
     expect(screen.getByText('ORDER_LOOKUP')).toBeTruthy();
     expect(screen.getByText('Risk Level')).toBeTruthy();
-    expect(screen.getByText('READ_ONLY')).toBeTruthy();
+    expect(screen.getAllByText('READ_ONLY')).toHaveLength(2);
     expect(screen.getByText('Trace ID')).toBeTruthy();
+    expect(screen.getByText('Tool Calls')).toBeTruthy();
+    expect(screen.getByText('order_lookup')).toBeTruthy();
+    expect(screen.getByText('orderId=order-1001')).toBeTruthy();
+    expect(screen.getByText('12ms')).toBeTruthy();
+    expect(screen.getByText('order-1001 企业级 AI Agent 实战营 PAID')).toBeTruthy();
     expect(screen.getByText('Next Actions')).toBeTruthy();
     expect(screen.getByText('展示订单状态')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(

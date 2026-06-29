@@ -6,7 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.intent.IntentRouter;
 import com.example.customer.agent.order.MockOrderRepository;
-import com.example.customer.agent.order.OrderLookupService;
+import com.example.customer.agent.tool.OrderLookupTool;
+import com.example.customer.agent.tool.RefundPolicyCheckTool;
 import com.example.customer.domain.trace.ConversationRoute;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,6 +82,16 @@ class ChatServiceModelClientTest {
 
         assertThat(response.answer()).contains("已查询到订单 order-1001");
         assertThat(response.sources()).containsExactly("order:order-1001");
+        assertThat(response.toolCalls()).singleElement()
+                .satisfies(toolCall -> {
+                    assertThat(toolCall.name()).isEqualTo("order_lookup");
+                    assertThat(toolCall.arguments()).containsEntry("orderId", "order-1001");
+                    assertThat(toolCall.arguments()).containsEntry("tenantId", "tenant-demo");
+                    assertThat(toolCall.status()).isEqualTo("SUCCEEDED");
+                    assertThat(toolCall.riskLevel()).isEqualTo("READ_ONLY");
+                    assertThat(toolCall.durationMs()).isGreaterThanOrEqualTo(0L);
+                    assertThat(toolCall.resultSummary()).contains("PAID");
+                });
         assertThat(chatModelClient.prompts()).isEmpty();
     }
 
@@ -125,9 +136,18 @@ class ChatServiceModelClientTest {
 
         assertThat(response.route()).isEqualTo(ConversationRoute.REFUND_OR_CANCEL.name());
         assertThat(response.riskLevel()).isEqualTo("HIGH_RISK");
-        assertThat(response.answer()).contains("不能直接执行退款");
+        assertThat(response.answer()).contains("可进入人工审批流程");
         assertThat(response.sources()).containsExactly("order:order-1001");
-        assertThat(response.nextActions()).contains("进入人工审批前置判断");
+        assertThat(response.nextActions()).contains("创建人工审批请求");
+        assertThat(response.toolCalls()).singleElement()
+                .satisfies(toolCall -> {
+                    assertThat(toolCall.name()).isEqualTo("refund_policy_check");
+                    assertThat(toolCall.arguments()).containsEntry("orderId", "order-1001");
+                    assertThat(toolCall.arguments()).containsEntry("tenantId", "tenant-demo");
+                    assertThat(toolCall.status()).isEqualTo("SUCCEEDED");
+                    assertThat(toolCall.riskLevel()).isEqualTo("READ_ONLY");
+                    assertThat(toolCall.resultSummary()).contains("ELIGIBLE_FOR_REVIEW");
+                });
     }
 
     @Test
@@ -160,17 +180,15 @@ class ChatServiceModelClientTest {
         return properties;
     }
 
-    private static OrderLookupService orderLookupService() {
-        return new OrderLookupService(new MockOrderRepository());
-    }
-
     private static ChatService chatService(CustomerAgentProperties properties, CustomerChatModelClient chatModelClient) {
+        var orderRepository = new MockOrderRepository();
         return new ChatService(
-                orderLookupService(),
                 properties,
                 chatModelClient,
                 new IntentRouter(),
-                new CustomerAgentResponseParser(new tools.jackson.databind.ObjectMapper()));
+                new CustomerAgentResponseParser(new tools.jackson.databind.ObjectMapper()),
+                new OrderLookupTool(orderRepository),
+                new RefundPolicyCheckTool(orderRepository));
     }
 
     private static final class RecordingChatModelClient implements CustomerChatModelClient {

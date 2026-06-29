@@ -39,6 +39,16 @@ type CustomerAgentResponse = {
   answer: string;
   sources: string[];
   nextActions: string[];
+  toolCalls: ToolCall[];
+};
+
+type ToolCall = {
+  name: string;
+  arguments: Record<string, string>;
+  status: string;
+  riskLevel: string;
+  durationMs: number;
+  resultSummary: string;
 };
 
 type ApiErrorResponse = {
@@ -70,7 +80,20 @@ const initialChat: CustomerAgentResponse = {
   riskLevel: 'READ_ONLY',
   answer: '已查询到订单 order-1001，课程为「企业级 AI Agent 实战营」，当前状态为 PAID。',
   sources: ['order:order-1001'],
-  nextActions: ['展示订单状态', '等待用户继续追问']
+  nextActions: ['展示订单状态', '等待用户继续追问'],
+  toolCalls: [
+    {
+      name: 'order_lookup',
+      arguments: {
+        orderId: 'order-1001',
+        tenantId: 'tenant-demo'
+      },
+      status: 'SUCCEEDED',
+      riskLevel: 'READ_ONLY',
+      durationMs: 3,
+      resultSummary: 'order-1001 企业级 AI Agent 实战营 PAID'
+    }
+  ]
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -219,6 +242,35 @@ function DebugDashboard() {
                 <Divider className="compact-divider" />
                 <Typography.Title level={3}>Answer</Typography.Title>
                 <Typography.Paragraph className="reply-text">{chat.answer}</Typography.Paragraph>
+
+                <Divider className="compact-divider" />
+                <Typography.Title level={3}>Tool Calls</Typography.Title>
+                {chat.toolCalls.length > 0 ? (
+                  <ul className="tool-calls">
+                    {chat.toolCalls.map((toolCall) => (
+                      <li key={`${toolCall.name}-${toolCall.durationMs}-${toolCall.resultSummary}`} className="tool-call-item">
+                        <div className="tool-call-header">
+                          <Typography.Text strong>{toolCall.name}</Typography.Text>
+                          <span className="tool-call-tags">
+                            <Tag color={toolCall.status === 'SUCCEEDED' ? 'green' : 'red'}>{toolCall.status}</Tag>
+                            <Tag color={toolCall.riskLevel === 'READ_ONLY' ? 'blue' : 'orange'}>{toolCall.riskLevel}</Tag>
+                            <Typography.Text code>{toolCall.durationMs}ms</Typography.Text>
+                          </span>
+                        </div>
+                        <div className="tool-call-arguments">
+                          {Object.entries(toolCall.arguments).map(([key, value]) => (
+                            <Typography.Text code key={key}>
+                              {key}={value}
+                            </Typography.Text>
+                          ))}
+                        </div>
+                        <Typography.Paragraph className="tool-call-summary">{toolCall.resultSummary}</Typography.Paragraph>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
 
                 <Divider className="compact-divider" />
                 <Typography.Title level={3}>Sources</Typography.Title>

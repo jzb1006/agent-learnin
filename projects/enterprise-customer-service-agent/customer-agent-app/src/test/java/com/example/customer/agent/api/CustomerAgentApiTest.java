@@ -149,6 +149,13 @@ class CustomerAgentApiTest {
         assertThat(body.path("answer").asText()).contains("企业级 AI Agent 实战营");
         assertThat(body.path("sources").get(0).asText()).isEqualTo("order:order-1001");
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo("展示订单状态");
+        assertThat(body.path("toolCalls").get(0).path("name").asText()).isEqualTo("order_lookup");
+        assertThat(body.path("toolCalls").get(0).path("arguments").path("orderId").asText()).isEqualTo("order-1001");
+        assertThat(body.path("toolCalls").get(0).path("arguments").path("tenantId").asText()).isEqualTo("tenant-demo");
+        assertThat(body.path("toolCalls").get(0).path("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(body.path("toolCalls").get(0).path("riskLevel").asText()).isEqualTo("READ_ONLY");
+        assertThat(body.path("toolCalls").get(0).path("durationMs").asLong()).isGreaterThanOrEqualTo(0L);
+        assertThat(body.path("toolCalls").get(0).path("resultSummary").asText()).contains("PAID");
     }
 
     @ParameterizedTest
@@ -194,9 +201,14 @@ class CustomerAgentApiTest {
         assertThat(body.path("traceId").asText()).isEqualTo("trace-refund-intent-test");
         assertThat(body.path("route").asText()).isEqualTo("REFUND_OR_CANCEL");
         assertThat(body.path("riskLevel").asText()).isEqualTo("HIGH_RISK");
-        assertThat(body.path("answer").asText()).contains("不能直接执行退款");
+        assertThat(body.path("answer").asText()).contains("ELIGIBLE_FOR_REVIEW");
         assertThat(body.path("sources").get(0).asText()).isEqualTo("order:order-1001");
-        assertThat(body.path("nextActions").get(0).asText()).isEqualTo("进入人工审批前置判断");
+        assertThat(body.path("nextActions").get(0).asText()).isEqualTo("创建人工审批请求");
+        assertThat(body.path("toolCalls").get(0).path("name").asText()).isEqualTo("refund_policy_check");
+        assertThat(body.path("toolCalls").get(0).path("arguments").path("orderId").asText()).isEqualTo("order-1001");
+        assertThat(body.path("toolCalls").get(0).path("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(body.path("toolCalls").get(0).path("riskLevel").asText()).isEqualTo("READ_ONLY");
+        assertThat(body.path("toolCalls").get(0).path("resultSummary").asText()).contains("CREATE_APPROVAL_REQUEST");
     }
 
     @Test
@@ -263,6 +275,6 @@ class CustomerAgentApiTest {
                 Arguments.of("新手适合学企业级 AI Agent 课程吗？", "trace-stage2-knowledge", "KNOWLEDGE_QA", "READ_ONLY", "等待 RAG 知识库接入"),
                 Arguments.of("帮我查询订单 order-1001 什么时候开课", "trace-stage2-order", "ORDER_LOOKUP", "READ_ONLY", "展示订单状态"),
                 Arguments.of("我要转人工客服", "trace-stage2-handoff", "HUMAN_HANDOFF", "LOW_RISK_WRITE", "记录人工转接意向"),
-                Arguments.of("订单 order-1001 可以退款吗？", "trace-stage2-refund", "REFUND_OR_CANCEL", "HIGH_RISK", "进入人工审批前置判断"));
+                Arguments.of("订单 order-1001 可以退款吗？", "trace-stage2-refund", "REFUND_OR_CANCEL", "HIGH_RISK", "创建人工审批请求"));
     }
 }
