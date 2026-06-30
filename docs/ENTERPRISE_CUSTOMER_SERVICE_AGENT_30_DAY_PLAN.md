@@ -135,6 +135,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 17 | 已完成 | 2026-06-29 | [接入 Spring AI RAG](day-17-spring-ai-rag.md) |
 | Day 18 | 已完成 | 2026-06-30 | [引入 pgvector](day-18-pgvector.md) |
 | Day 19 | 已完成 | 2026-06-30 | [多租户隔离](day-19-multi-tenant-isolation.md) |
+| Day 20 | 已完成 | 2026-06-30 | [知识库管理 API](day-20-knowledge-management-api.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
@@ -568,9 +569,9 @@ knowledge-base/
 接口：
 
 ```text
-POST /api/v1/knowledge/items
-DELETE /api/v1/knowledge/items
-POST /api/v1/knowledge/reindex
+POST /admin/api/v1/knowledge/items
+DELETE /admin/api/v1/knowledge/items
+POST /admin/api/v1/knowledge/reindex
 ```
 
 验收：
@@ -579,6 +580,7 @@ POST /api/v1/knowledge/reindex
 - 删除知识后不再命中。
 - 重启应用不会自动删除并重建全部向量数据。
 - 知识内容未变化时，不重复调用 Embedding 模型生成相同向量。
+- 知识库管理 API 使用 `/admin/api/**` namespace，与用户侧 `/chat` 和 `/api/orders/**` 隔离。
 
 ## 阶段 5：MCP、Memory、安全与审批
 

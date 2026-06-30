@@ -29,7 +29,10 @@ import tools.jackson.databind.ObjectMapper;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "customer-agent.chat-model.enabled=false",
+                "customer-agent.knowledge-base.embedding-mode=local",
+                "customer-agent.knowledge-base.vector-store-type=simple",
                 "spring.ai.model.chat=none",
+                "spring.ai.model.embedding=none",
                 "spring.ai.openai.base-url=",
                 "spring.ai.openai.chat.base-url=https://api.deepseek.com",
                 "spring.ai.openai.chat.model=deepseek-v4-flash"
@@ -246,6 +249,9 @@ class CustomerAgentApiTest {
                 """.formatted(message);
 
         var tenantId = "KNOWLEDGE_QA".equals(expectedRoute) ? "default" : "tenant-demo";
+        if ("KNOWLEDGE_QA".equals(expectedRoute)) {
+            post("/admin/api/v1/knowledge/reindex", "", traceId + "-reindex", tenantId);
+        }
         var response = post("/chat", requestBody, traceId, tenantId);
         var body = json(response.body());
 
@@ -287,6 +293,155 @@ class CustomerAgentApiTest {
         assertThat(body.path("toolCalls").get(0).path("status").asText()).isEqualTo("SUCCEEDED");
         assertThat(body.path("toolCalls").get(0).path("riskLevel").asText()).isEqualTo("READ_ONLY");
         assertThat(body.path("toolCalls").get(0).path("resultSummary").asText()).contains("CREATE_APPROVAL_REQUEST");
+    }
+
+    @Test
+    void shouldManageKnowledgeItemWithoutRestartingApplication() throws Exception {
+        var itemBody = """
+                {
+                  "itemId": "faq-day20-api",
+                  "category": "FAQ",
+                  "title": "Day20 知识管理 API",
+                  "content": "知识库管理 API 新增知识后，无需重启服务即可被 RAG 检索命中。",
+                  "source": "day20#api",
+                  "version": "2026-06-30",
+                  "tags": ["day20", "knowledge"]
+                }
+                """;
+        var addResponse = post("/admin/api/v1/knowledge/items", itemBody, "trace-knowledge-add", "tenant-kb-api");
+        var addBody = json(addResponse.body());
+
+        assertThat(addResponse.statusCode()).isEqualTo(200);
+        assertThat(addBody.path("itemId").asText()).isEqualTo("faq-day20-api");
+        assertThat(addBody.path("tenantId").asText()).isEqualTo("tenant-kb-api");
+        assertThat(addBody.path("indexedChunks").asInt()).isPositive();
+        assertThat(addBody.path("skipped").asBoolean()).isFalse();
+
+        var chatBody = """
+                {
+                  "message": "知识库管理 API 新增知识需要重启吗？"
+                }
+                """;
+        var chatResponse = post("/chat", chatBody, "trace-knowledge-chat", "tenant-kb-api");
+        var chatJson = json(chatResponse.body());
+
+        assertThat(chatResponse.statusCode()).isEqualTo(200);
+        assertThat(chatJson.path("route").asText()).isEqualTo("KNOWLEDGE_QA");
+        assertThat(chatJson.path("answer").asText()).contains("无需重启服务");
+        assertThat(chatJson.path("sources").get(0).asText()).isEqualTo("day20#api");
+
+        var deleteResponse = delete("/admin/api/v1/knowledge/items?itemId=faq-day20-api", "trace-knowledge-delete", "tenant-kb-api");
+        var deleteBody = json(deleteResponse.body());
+
+        assertThat(deleteResponse.statusCode()).isEqualTo(200);
+        assertThat(deleteBody.path("itemId").asText()).isEqualTo("faq-day20-api");
+        assertThat(deleteBody.path("tenantId").asText()).isEqualTo("tenant-kb-api");
+        assertThat(deleteBody.path("deleted").asBoolean()).isTrue();
+
+        var deletedChatResponse = post("/chat", chatBody, "trace-knowledge-chat-deleted", "tenant-kb-api");
+        var deletedChatJson = json(deletedChatResponse.body());
+
+        assertThat(deletedChatResponse.statusCode()).isEqualTo(200);
+        assertThat(deletedChatJson.path("answer").asText()).contains("未检索到可引用答案");
+    }
+
+    @Test
+    void shouldSkipUnchangedKnowledgeItemOnSecondUpsert() throws Exception {
+        var itemBody = """
+                {
+                  "itemId": "faq-day20-skip",
+                  "category": "FAQ",
+                  "title": "Day20 跳过重复索引",
+                  "content": "知识内容未变化时，不重复调用 Embedding 模型生成相同向量。",
+                  "source": "day20#skip",
+                  "version": "2026-06-30",
+                  "tags": ["day20"]
+                }
+                """;
+
+        var firstResponse = post("/admin/api/v1/knowledge/items", itemBody, "trace-knowledge-skip-first", "tenant-kb-skip");
+        var secondResponse = post("/admin/api/v1/knowledge/items", itemBody, "trace-knowledge-skip-second", "tenant-kb-skip");
+        var secondBody = json(secondResponse.body());
+
+        assertThat(firstResponse.statusCode()).isEqualTo(200);
+        assertThat(secondResponse.statusCode()).isEqualTo(200);
+        assertThat(secondBody.path("itemId").asText()).isEqualTo("faq-day20-skip");
+        assertThat(secondBody.path("skipped").asBoolean()).isTrue();
+        assertThat(secondBody.path("indexedChunks").asInt()).isZero();
+    }
+
+    @Test
+    void shouldListAndSearchKnowledgeAdminItems() throws Exception {
+        var itemBody = """
+                {
+                  "itemId": "faq-day20-admin-search",
+                  "category": "FAQ",
+                  "title": "Day20 Knowledge Admin Search",
+                  "content": "runtime search token verifies the lightweight knowledge admin search endpoint.",
+                  "source": "day20#admin-search",
+                  "version": "2026-06-30",
+                  "tags": ["day20", "admin"]
+                }
+                """;
+
+        var addResponse = post("/admin/api/v1/knowledge/items", itemBody, "trace-knowledge-list-add", "tenant-kb-list");
+        assertThat(addResponse.statusCode()).isEqualTo(200);
+
+        var listResponse = get("/admin/api/v1/knowledge/items", "trace-knowledge-list", "tenant-kb-list");
+        var listBody = json(listResponse.body());
+
+        assertThat(listResponse.statusCode()).isEqualTo(200);
+        assertThat(listBody.path("items").size()).isGreaterThanOrEqualTo(1);
+        assertThat(listBody.path("items").get(0).path("itemId").asText()).isEqualTo("faq-day20-admin-search");
+        assertThat(listBody.path("items").get(0).path("title").asText()).isEqualTo("Day20 Knowledge Admin Search");
+        assertThat(listBody.path("items").get(0).path("source").asText()).isEqualTo("day20#admin-search");
+
+        var searchResponse = get(
+                "/admin/api/v1/knowledge/search?query=runtime&topK=3",
+                "trace-knowledge-search",
+                "tenant-kb-list");
+        var searchBody = json(searchResponse.body());
+
+        assertThat(searchResponse.statusCode()).isEqualTo(200);
+        assertThat(searchBody.path("query").asText()).isEqualTo("runtime");
+        assertThat(searchBody.path("tenantId").asText()).isEqualTo("tenant-kb-list");
+        assertThat(searchBody.path("matches").size()).isGreaterThanOrEqualTo(1);
+        assertThat(searchBody.path("matches").get(0).path("itemId").asText()).isEqualTo("faq-day20-admin-search");
+        assertThat(searchBody.path("matches").get(0).path("content").asText()).contains("runtime search token");
+
+        var deleteResponse = delete(
+                "/admin/api/v1/knowledge/items?itemId=faq-day20-admin-search",
+                "trace-knowledge-list-delete",
+                "tenant-kb-list");
+        assertThat(deleteResponse.statusCode()).isEqualTo(200);
+
+        var deletedListResponse = get("/admin/api/v1/knowledge/items", "trace-knowledge-list-deleted", "tenant-kb-list");
+        var deletedListBody = json(deletedListResponse.body());
+
+        assertThat(deletedListResponse.statusCode()).isEqualTo(200);
+        assertThat(deletedListBody.path("items"))
+                .noneSatisfy(item -> assertThat(item.path("itemId").asText()).isEqualTo("faq-day20-admin-search"));
+    }
+
+    @Test
+    void shouldReindexKnowledgeOnlyWhenApiIsCalled() throws Exception {
+        var reindexResponse = post("/admin/api/v1/knowledge/reindex", "", "trace-knowledge-reindex", "tenant-demo");
+        var body = json(reindexResponse.body());
+
+        assertThat(reindexResponse.statusCode()).isEqualTo(200);
+        assertThat(body.path("documents").asInt()).isPositive();
+        assertThat(body.path("indexedChunks").asInt()).isGreaterThanOrEqualTo(0);
+        assertThat(body.path("skippedItems").asInt()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void shouldRejectKnowledgeAdminApiWithoutTenantHeader() throws Exception {
+        var response = post("/admin/api/v1/knowledge/reindex", "", "trace-knowledge-missing-tenant");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(body.path("errorCode").asText()).isEqualTo("TENANT_REQUIRED");
+        assertThat(body.path("path").asText()).isEqualTo("/admin/api/v1/knowledge/reindex");
     }
 
     @Test
@@ -355,6 +510,15 @@ class CustomerAgentApiTest {
                 .header("X-Trace-Id", traceId)
                 .header("X-Tenant-ID", tenantId)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> delete(String path, String traceId, String tenantId) throws Exception {
+        var request = HttpRequest.newBuilder(uri(path))
+                .header("X-Trace-Id", traceId)
+                .header("X-Tenant-ID", tenantId)
+                .DELETE()
                 .build();
         return httpClient.send(request, BodyHandlers.ofString());
     }

@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * 租户 Web MVC 配置。
  * <p>
- * 将租户拦截器限定在业务接口上，健康检查保持匿名可访问。
+ * 将租户拦截器限定在业务与管理接口上，健康检查保持匿名可访问。
  *
  * @author jiangzhibin
  * @since 2026-06-30 11:45:00
@@ -27,6 +27,6 @@ public class TenantWebMvcConfiguration implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(tenantContextInterceptor)
-                .addPathPatterns("/chat", "/api/**");
+                .addPathPatterns("/chat", "/api/**", "/admin/**");
     }
 }

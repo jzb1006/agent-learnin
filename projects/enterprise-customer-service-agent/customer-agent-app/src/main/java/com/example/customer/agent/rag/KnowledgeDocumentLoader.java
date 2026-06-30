@@ -64,8 +64,10 @@ public class KnowledgeDocumentLoader implements DocumentReader {
             var raw = Files.readString(documentPath).replace("\r\n", "\n");
             var parsed = parseFrontMatter(raw, documentPath);
             var metadata = new LinkedHashMap<String, Object>(parsed.metadata());
-            metadata.put("path", rootDirectory.relativize(documentPath).toString().replace('\\', '/'));
-            var id = metadata.get("path").toString();
+            var path = rootDirectory.relativize(documentPath).toString().replace('\\', '/');
+            metadata.put("path", path);
+            metadata.putIfAbsent("itemId", path);
+            var id = metadata.get("itemId").toString();
             return new Document(id, parsed.content().strip(), metadata);
         } catch (IOException exception) {
             throw new UncheckedIOException("读取知识文档失败: " + documentPath, exception);

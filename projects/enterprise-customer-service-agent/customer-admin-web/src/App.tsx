@@ -58,6 +58,57 @@ type ApiErrorResponse = {
   traceId?: string;
 };
 
+type KnowledgeItemResponse = {
+  itemId: string;
+  tenantId: string;
+  indexedChunks: number;
+  skipped: boolean;
+};
+
+type KnowledgeReindexResponse = {
+  documents: number;
+  indexedChunks: number;
+  skippedItems: number;
+};
+
+type KnowledgeDeleteResponse = {
+  itemId: string;
+  tenantId: string;
+  deleted: boolean;
+};
+
+type KnowledgeItemSummary = {
+  itemId: string;
+  tenantId: string;
+  category: string;
+  title: string;
+  source: string;
+  version: string;
+  indexedChunks: number;
+  contentPreview: string;
+};
+
+type KnowledgeItemsResponse = {
+  items: KnowledgeItemSummary[];
+};
+
+type KnowledgeSearchMatch = {
+  itemId: string;
+  title: string;
+  source: string;
+  tenant: string;
+  category: string;
+  content: string;
+  score: number;
+};
+
+type KnowledgeSearchResponse = {
+  query: string;
+  tenantId: string;
+  topK: number;
+  matches: KnowledgeSearchMatch[];
+};
+
 const queryClient = new QueryClient();
 
 const initialHealth: HealthResponse = {
@@ -96,6 +147,15 @@ const initialChat: CustomerAgentResponse = {
   ]
 };
 
+const initialKnowledgeItem = {
+  itemId: 'faq-day20-api',
+  category: 'FAQ',
+  title: 'Day20 知识管理 API',
+  content: '知识库管理 API 新增知识后，无需重启服务即可被 RAG 检索命中。',
+  source: 'day20#api',
+  version: '2026-06-30'
+};
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -131,6 +191,16 @@ function DebugDashboard() {
   const [message, setMessage] = useState(`帮我查询订单 ${initialOrder.id} 什么时候开课`);
   const [chat, setChat] = useState(initialChat);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [knowledgeItemId, setKnowledgeItemId] = useState(initialKnowledgeItem.itemId);
+  const [knowledgeTitle, setKnowledgeTitle] = useState(initialKnowledgeItem.title);
+  const [knowledgeContent, setKnowledgeContent] = useState(initialKnowledgeItem.content);
+  const [knowledgeSearch, setKnowledgeSearch] = useState('知识库管理');
+  const [knowledgeResult, setKnowledgeResult] = useState<KnowledgeItemResponse | null>(null);
+  const [deleteResult, setDeleteResult] = useState<KnowledgeDeleteResponse | null>(null);
+  const [reindexResult, setReindexResult] = useState<KnowledgeReindexResponse | null>(null);
+  const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItemSummary[]>([]);
+  const [searchResult, setSearchResult] = useState<KnowledgeSearchResponse | null>(null);
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -162,6 +232,82 @@ function DebugDashboard() {
       setChatError(null);
     }
   });
+  const knowledgeMutation = useMutation({
+    mutationFn: (payload: KnowledgeItemPayload) =>
+      requestJson<KnowledgeItemResponse>('/admin/api/v1/knowledge/items', {
+        method: 'POST',
+        headers: tenantHeaders(payload.tenantId),
+        body: JSON.stringify(payload.item)
+      }),
+    onError: (error) => {
+      setKnowledgeError(error instanceof Error ? error.message : '知识写入失败');
+    },
+    onSuccess: (response) => {
+      setKnowledgeResult(response);
+      setDeleteResult(null);
+      setKnowledgeError(null);
+      listKnowledgeMutation.mutate({ tenantId: tenantId.trim() });
+    }
+  });
+  const listKnowledgeMutation = useMutation({
+    mutationFn: (payload: { tenantId: string }) =>
+      requestJson<KnowledgeItemsResponse>('/admin/api/v1/knowledge/items', {
+        headers: tenantHeaders(payload.tenantId)
+      }),
+    onError: (error) => {
+      setKnowledgeError(error instanceof Error ? error.message : '知识列表加载失败');
+    },
+    onSuccess: (response) => {
+      setKnowledgeItems(response.items);
+      setKnowledgeError(null);
+    }
+  });
+  const deleteKnowledgeMutation = useMutation({
+    mutationFn: (payload: { tenantId: string; itemId: string }) =>
+      requestJson<KnowledgeDeleteResponse>(`/admin/api/v1/knowledge/items?itemId=${encodeURIComponent(payload.itemId)}`, {
+        method: 'DELETE',
+        headers: tenantHeaders(payload.tenantId)
+      }),
+    onError: (error) => {
+      setKnowledgeError(error instanceof Error ? error.message : '知识删除失败');
+    },
+    onSuccess: (response) => {
+      setDeleteResult(response);
+      setKnowledgeError(null);
+      setKnowledgeItems((items) => items.filter((item) => item.itemId !== response.itemId));
+    }
+  });
+  const searchKnowledgeMutation = useMutation({
+    mutationFn: (payload: { tenantId: string; query: string }) =>
+      requestJson<KnowledgeSearchResponse>(
+        `/admin/api/v1/knowledge/search?query=${encodeURIComponent(payload.query)}&topK=3`,
+        {
+          headers: tenantHeaders(payload.tenantId)
+        }
+      ),
+    onError: (error) => {
+      setKnowledgeError(error instanceof Error ? error.message : '知识搜索失败');
+    },
+    onSuccess: (response) => {
+      setSearchResult(response);
+      setKnowledgeError(null);
+    }
+  });
+  const reindexMutation = useMutation({
+    mutationFn: (payload: { tenantId: string }) =>
+      requestJson<KnowledgeReindexResponse>('/admin/api/v1/knowledge/reindex', {
+        method: 'POST',
+        headers: tenantHeaders(payload.tenantId)
+      }),
+    onError: (error) => {
+      setKnowledgeError(error instanceof Error ? error.message : '重建索引失败');
+    },
+    onSuccess: (response) => {
+      setReindexResult(response);
+      setKnowledgeError(null);
+      listKnowledgeMutation.mutate({ tenantId: tenantId.trim() });
+    }
+  });
   const health = healthQuery.data;
   const order = orderQuery.data;
   const orderError = orderQuery.error instanceof Error ? orderQuery.error.message : null;
@@ -169,6 +315,13 @@ function DebugDashboard() {
   const canQueryOrder = tenantId.trim().length > 0 && normalizedOrderId.length > 0;
   const isOrderLookupPending = orderQuery.isFetching && orderLookupId === normalizedOrderId;
   const canSubmitChat = tenantId.trim().length > 0 && message.trim().length > 0;
+  const canSaveKnowledge =
+    tenantId.trim().length > 0 &&
+    knowledgeItemId.trim().length > 0 &&
+    knowledgeTitle.trim().length > 0 &&
+    knowledgeContent.trim().length > 0;
+  const canDeleteKnowledge = tenantId.trim().length > 0 && knowledgeItemId.trim().length > 0;
+  const canSearchKnowledge = tenantId.trim().length > 0 && knowledgeSearch.trim().length > 0;
 
   function submitOrderLookup() {
     if (!canQueryOrder) {
@@ -184,6 +337,58 @@ function DebugDashboard() {
     chatMutation.mutate({
       tenantId: tenantId.trim(),
       message: message.trim()
+    });
+  }
+
+  function saveKnowledge() {
+    if (!canSaveKnowledge) {
+      return;
+    }
+    knowledgeMutation.mutate({
+      tenantId: tenantId.trim(),
+      item: {
+        itemId: knowledgeItemId.trim(),
+        category: initialKnowledgeItem.category,
+        title: knowledgeTitle.trim(),
+        content: knowledgeContent.trim(),
+        source: initialKnowledgeItem.source,
+        version: initialKnowledgeItem.version,
+        tags: ['day20', 'debug']
+      }
+    });
+  }
+
+  function reindexKnowledge() {
+    if (tenantId.trim().length === 0) {
+      return;
+    }
+    reindexMutation.mutate({ tenantId: tenantId.trim() });
+  }
+
+  function listKnowledge() {
+    if (tenantId.trim().length === 0) {
+      return;
+    }
+    listKnowledgeMutation.mutate({ tenantId: tenantId.trim() });
+  }
+
+  function deleteKnowledge() {
+    if (!canDeleteKnowledge) {
+      return;
+    }
+    deleteKnowledgeMutation.mutate({
+      tenantId: tenantId.trim(),
+      itemId: knowledgeItemId.trim()
+    });
+  }
+
+  function searchKnowledgeItems() {
+    if (!canSearchKnowledge) {
+      return;
+    }
+    searchKnowledgeMutation.mutate({
+      tenantId: tenantId.trim(),
+      query: knowledgeSearch.trim()
     });
   }
 
@@ -231,6 +436,136 @@ function DebugDashboard() {
                 <Tag color="blue">{order.status}</Tag>
               </Descriptions.Item>
             </Descriptions>
+          </Card>
+
+          <Card className="debug-panel" title="Knowledge Debug">
+            <div className="knowledge-debug-form">
+              <label className="field-label" htmlFor="knowledge-item-id">
+                知识 ID
+              </label>
+              <Input
+                id="knowledge-item-id"
+                value={knowledgeItemId}
+                onChange={(event) => setKnowledgeItemId(event.target.value)}
+              />
+
+              <label className="field-label" htmlFor="knowledge-title">
+                标题
+              </label>
+              <Input id="knowledge-title" value={knowledgeTitle} onChange={(event) => setKnowledgeTitle(event.target.value)} />
+
+              <label className="field-label" htmlFor="knowledge-content">
+                内容
+              </label>
+              <Input.TextArea
+                id="knowledge-content"
+                autoSize={{ minRows: 3, maxRows: 6 }}
+                value={knowledgeContent}
+                onChange={(event) => setKnowledgeContent(event.target.value)}
+              />
+              <div className="knowledge-actions">
+                <Button
+                  aria-label="保存知识"
+                  disabled={!canSaveKnowledge}
+                  loading={knowledgeMutation.isPending}
+                  onClick={saveKnowledge}
+                  type="primary"
+                >
+                  保存知识
+                </Button>
+                <Button aria-label="重建索引" loading={reindexMutation.isPending} onClick={reindexKnowledge}>
+                  重建索引
+                </Button>
+                <Button aria-label="刷新知识列表" loading={listKnowledgeMutation.isPending} onClick={listKnowledge}>
+                  刷新列表
+                </Button>
+                <Button
+                  aria-label="删除知识"
+                  danger
+                  disabled={!canDeleteKnowledge}
+                  loading={deleteKnowledgeMutation.isPending}
+                  onClick={deleteKnowledge}
+                >
+                  删除知识
+                </Button>
+              </div>
+            </div>
+            <div className="knowledge-search-form">
+              <label className="field-label" htmlFor="knowledge-search">
+                知识搜索
+              </label>
+              <Input
+                id="knowledge-search"
+                value={knowledgeSearch}
+                onChange={(event) => setKnowledgeSearch(event.target.value)}
+              />
+              <Button
+                aria-label="搜索知识"
+                disabled={!canSearchKnowledge}
+                loading={searchKnowledgeMutation.isPending}
+                onClick={searchKnowledgeItems}
+              >
+                搜索知识
+              </Button>
+            </div>
+            {knowledgeError ? <Alert className="knowledge-alert" message={knowledgeError} showIcon type="error" /> : null}
+            <div className="knowledge-debug-result">
+              {knowledgeResult ? (
+                <Typography.Text>
+                  {knowledgeResult.itemId} indexedChunks={knowledgeResult.indexedChunks} skipped=
+                  {String(knowledgeResult.skipped)}
+                </Typography.Text>
+              ) : null}
+              {deleteResult ? (
+                <Typography.Text>
+                  {deleteResult.itemId} deleted={String(deleteResult.deleted)}
+                </Typography.Text>
+              ) : null}
+              {reindexResult ? (
+                <Typography.Text>
+                  documents={reindexResult.documents} indexedChunks={reindexResult.indexedChunks} skippedItems=
+                  {reindexResult.skippedItems}
+                </Typography.Text>
+              ) : null}
+            </div>
+            <section className="knowledge-list" aria-label="Knowledge Items">
+              <Typography.Title level={3}>Knowledge Items</Typography.Title>
+              {knowledgeItems.length > 0 ? (
+                <ul>
+                  {knowledgeItems.map((item) => (
+                    <li key={`${item.tenantId}-${item.itemId}`}>
+                      <div className="knowledge-item-header">
+                        <Typography.Text strong>{item.title}</Typography.Text>
+                        <Tag color="blue">{item.category}</Tag>
+                      </div>
+                      <Typography.Text code>{item.itemId}</Typography.Text>
+                      <Typography.Paragraph>{item.contentPreview}</Typography.Paragraph>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              )}
+            </section>
+            <section className="knowledge-list" aria-label="Knowledge Search Results">
+              <Typography.Title level={3}>Search Results</Typography.Title>
+              {searchResult && searchResult.matches.length > 0 ? (
+                <ul>
+                  {searchResult.matches.map((match) => (
+                    <li key={`${match.tenant}-${match.itemId}-${match.source}`}>
+                      <div className="knowledge-item-header">
+                        <Typography.Text strong>{match.title}</Typography.Text>
+                        <Typography.Text code>score={match.score}</Typography.Text>
+                      </div>
+                      <Typography.Text code>{match.itemId}</Typography.Text>
+                      <Typography.Paragraph>{match.content}</Typography.Paragraph>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              )}
+            </section>
           </Card>
 
           <Card className="debug-panel chat-panel" title="Chat Console">
@@ -345,6 +680,19 @@ function DebugDashboard() {
 type ChatRequestPayload = {
   message: string;
   tenantId: string;
+};
+
+type KnowledgeItemPayload = {
+  tenantId: string;
+  item: {
+    itemId: string;
+    category: string;
+    title: string;
+    content: string;
+    source: string;
+    version: string;
+    tags: string[];
+  };
 };
 
 function App() {

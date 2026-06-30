@@ -281,9 +281,9 @@ flowchart TD
 
 | 接口 | 阶段 | 说明 |
 | --- | --- | --- |
-| `POST /api/v1/knowledge/items` | 阶段 4 | 新增知识条目 |
-| `DELETE /api/v1/knowledge/items` | 阶段 4 | 删除知识条目 |
-| `POST /api/v1/knowledge/reindex` | 阶段 4 | 重建知识索引 |
+| `POST /admin/api/v1/knowledge/items` | 阶段 4 | 新增知识条目 |
+| `DELETE /admin/api/v1/knowledge/items` | 阶段 4 | 删除知识条目 |
+| `POST /admin/api/v1/knowledge/reindex` | 阶段 4 | 重建知识索引 |
 | `GET /api/v1/traces/{traceId}` | 阶段 6 | 查看 trace |
 | `GET /api/v1/approvals` | 阶段 5 | 查询审批请求 |
 

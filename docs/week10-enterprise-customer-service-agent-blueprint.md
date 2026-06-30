@@ -246,9 +246,9 @@ GET /health
 接口：
 
 ```text
-POST /api/v1/knowledge/items
-DELETE /api/v1/knowledge/items
-POST /api/v1/knowledge/reindex
+POST /admin/api/v1/knowledge/items
+DELETE /admin/api/v1/knowledge/items
+POST /admin/api/v1/knowledge/reindex
 GET /api/v1/unanswered
 ```
 
@@ -410,10 +410,10 @@ GET  /api/orders/{orderId}
 POST /api/orders/{orderId}/refund-requests
 POST /api/orders/{orderId}/cancel-requests
 
-POST   /api/v1/knowledge/items
-DELETE /api/v1/knowledge/items
-POST   /api/v1/knowledge/reindex
-GET    /api/v1/knowledge/search
+POST   /admin/api/v1/knowledge/items
+DELETE /admin/api/v1/knowledge/items
+POST   /admin/api/v1/knowledge/reindex
+GET    /admin/api/v1/knowledge/search
 
 GET  /api/v1/approvals
 POST /api/v1/approvals/{id}/approve

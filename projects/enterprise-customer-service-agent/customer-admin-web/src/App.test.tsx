@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -42,6 +42,57 @@ const legacyOrderResponse = {
   productName: '企业级 AI Agent 架构班',
   status: 'PAID',
   paidAt: '2026-02-01T10:00:00Z'
+};
+
+const knowledgeItemResponse = {
+  itemId: 'faq-day20-api',
+  tenantId: 'tenant-demo',
+  indexedChunks: 1,
+  skipped: false
+};
+
+const knowledgeReindexResponse = {
+  documents: 6,
+  indexedChunks: 8,
+  skippedItems: 0
+};
+
+const knowledgeDeleteResponse = {
+  itemId: 'faq-day20-api',
+  tenantId: 'tenant-demo',
+  deleted: true
+};
+
+const knowledgeItemsResponse = {
+  items: [
+    {
+      itemId: 'faq-day20-api',
+      tenantId: 'tenant-demo',
+      category: 'FAQ',
+      title: 'Day20 知识管理 API',
+      source: 'day20#api',
+      version: '2026-06-30',
+      indexedChunks: 1,
+      contentPreview: '知识库管理 API 新增知识后，无需重启服务即可被 RAG 检索命中。'
+    }
+  ]
+};
+
+const knowledgeSearchResponse = {
+  query: '知识库管理',
+  tenantId: 'tenant-demo',
+  topK: 3,
+  matches: [
+    {
+      itemId: 'faq-day20-api',
+      title: 'Day20 知识管理 API',
+      source: 'day20#api',
+      tenant: 'tenant-demo',
+      category: 'FAQ',
+      content: '知识库管理 API 新增知识后，无需重启服务即可被 RAG 检索命中。',
+      score: 0.91
+    }
+  ]
 };
 
 beforeAll(() => {
@@ -89,6 +140,8 @@ describe('App', () => {
     expect(html).toContain('order_lookup');
     expect(html).toContain('ORDER_LOOKUP');
     expect(html).toContain('READ_ONLY');
+    expect(html).toContain('Knowledge Debug');
+    expect(html).toContain('重建索引');
   });
 
   it('queries orders from the visible order debug form', async () => {
@@ -205,6 +258,78 @@ describe('App', () => {
     expect(screen.getByText('展示订单状态')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
       '/chat',
+      expect.objectContaining({
+        method: 'POST'
+      })
+    );
+  });
+
+  it('upserts and reindexes knowledge from the debug panel', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path === '/health') {
+        return jsonResponse({ status: 'UP', service: 'customer-agent-app' });
+      }
+      if (path === '/api/orders/order-1001') {
+        return jsonResponse(orderResponse);
+      }
+      if (path === '/admin/api/v1/knowledge/items') {
+        if (init?.method === 'POST') {
+          expect(init.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+          expect(JSON.parse(String(init.body))).toEqual(
+            expect.objectContaining({
+              itemId: 'faq-day20-api',
+              category: 'FAQ',
+              title: 'Day20 知识管理 API'
+            })
+          );
+          return jsonResponse(knowledgeItemResponse);
+        }
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(knowledgeItemsResponse);
+      }
+      if (path === '/admin/api/v1/knowledge/items?itemId=faq-day20-api') {
+        expect(init?.method).toBe('DELETE');
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(knowledgeDeleteResponse);
+      }
+      if (path === '/admin/api/v1/knowledge/search?query=%E7%9F%A5%E8%AF%86%E5%BA%93%E7%AE%A1%E7%90%86&topK=3') {
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(knowledgeSearchResponse);
+      }
+      if (path === '/admin/api/v1/knowledge/reindex') {
+        expect(init?.method).toBe('POST');
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(knowledgeReindexResponse);
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存知识' }));
+    await waitFor(() => expect(screen.getByText(/indexedChunks=1/)).toBeTruthy());
+    expect(screen.getByText(/indexedChunks=1/)).toBeTruthy();
+    const knowledgeItems = screen.getByLabelText('Knowledge Items');
+    await waitFor(() => expect(within(knowledgeItems).getByText('Day20 知识管理 API')).toBeTruthy());
+    expect(within(knowledgeItems).getByText('faq-day20-api')).toBeTruthy();
+
+    await user.clear(screen.getByLabelText('知识搜索'));
+    await user.type(screen.getByLabelText('知识搜索'), '知识库管理');
+    await user.click(screen.getByRole('button', { name: '搜索知识' }));
+    const searchResults = screen.getByLabelText('Knowledge Search Results');
+    await waitFor(() => expect(within(searchResults).getByText(/score=0.91/)).toBeTruthy());
+    expect(within(searchResults).getByText(/RAG 检索命中/)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '删除知识' }));
+    await waitFor(() => expect(screen.getByText(/deleted=true/)).toBeTruthy());
+
+    await user.click(screen.getByRole('button', { name: '重建索引' }));
+    await waitFor(() => expect(screen.getByText(/documents=6/)).toBeTruthy());
+    expect(screen.getByText(/indexedChunks=8/)).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/admin/api/v1/knowledge/reindex',
       expect.objectContaining({
         method: 'POST'
       })

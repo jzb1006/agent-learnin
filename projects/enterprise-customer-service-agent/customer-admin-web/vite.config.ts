@@ -6,6 +6,7 @@ const apiBaseUrl = process.env.CUSTOMER_AGENT_API_BASE_URL ?? 'http://127.0.0.1:
 export default defineConfig({
   server: {
     proxy: {
+      '/admin': apiBaseUrl,
       '/api': apiBaseUrl,
       '/chat': apiBaseUrl,
       '/health': apiBaseUrl

@@ -79,7 +79,7 @@ class KnowledgeRetrievalServiceTest {
     }
 
     @Test
-    void shouldDeleteExistingKnowledgeByTenantBeforeReindex() throws Exception {
+    void shouldDeleteExistingKnowledgeItemChunksBeforeReindex() throws Exception {
         writeKnowledge(
                 "default/faq/learning-readiness.md",
                 "课程适合哪些学员",
@@ -94,10 +94,75 @@ class KnowledgeRetrievalServiceTest {
         service.reindex();
 
         assertThat(vectorStore.deletedExpression).isNotNull();
-        assertThat(vectorStore.deletedExpression.type()).isEqualTo(Filter.ExpressionType.EQ);
-        assertThat(vectorStore.deletedExpression.left()).isEqualTo(new Filter.Key("tenant"));
-        assertThat(vectorStore.deletedExpression.right()).isEqualTo(new Filter.Value("default"));
+        assertThat(vectorStore.deletedExpression.type()).isEqualTo(Filter.ExpressionType.AND);
+        assertThat(vectorStore.deletedExpression.toString())
+                .contains("tenant")
+                .contains("default")
+                .contains("itemId")
+                .contains("default/faq/learning-readiness.md");
         assertThat(vectorStore.addedDocuments).isNotEmpty();
+    }
+
+    @Test
+    void shouldNotReindexAutomaticallyWhenServiceIsConstructed() {
+        var vectorStore = new RecordingVectorStore();
+
+        new KnowledgeRetrievalService(
+                vectorStore, new KnowledgeDocumentLoader(knowledgeBaseRoot), new KnowledgeDocumentSplitter());
+
+        assertThat(vectorStore.addCalls).isZero();
+        assertThat(vectorStore.deleteCalls).isZero();
+    }
+
+    @Test
+    void shouldAddAndDeleteSingleManagedKnowledgeItem() {
+        var service = new KnowledgeRetrievalService(
+                SimpleVectorStore.builder(new LocalKnowledgeEmbeddingModel()).build(),
+                new KnowledgeDocumentLoader(knowledgeBaseRoot),
+                new KnowledgeDocumentSplitter());
+
+        var addResult = service.indexItem(
+                new ManagedKnowledgeItem(
+                        "faq-day20",
+                        "tenant-demo",
+                        "FAQ",
+                        "Day20 知识管理 API",
+                        "新增知识无需重启服务即可被检索。",
+                        "day20#faq",
+                        "2026-06-30",
+                        List.of("day20")));
+        var results = service.retrieve("新增知识是否需要重启", "tenant-demo", 3);
+        service.deleteItem("tenant-demo", "faq-day20");
+        var deletedResults = service.retrieve("新增知识是否需要重启", "tenant-demo", 3);
+
+        assertThat(addResult.indexedChunks()).isPositive();
+        assertThat(results).isNotEmpty();
+        assertThat(results.getFirst().title()).isEqualTo("Day20 知识管理 API");
+        assertThat(results.getFirst().source()).isEqualTo("day20#faq");
+        assertThat(deletedResults).isEmpty();
+    }
+
+    @Test
+    void shouldSkipUnchangedKnowledgeItemWhenReindexing() {
+        var vectorStore = new RecordingVectorStore();
+        var service = new KnowledgeRetrievalService(
+                vectorStore, new KnowledgeDocumentLoader(knowledgeBaseRoot), new KnowledgeDocumentSplitter());
+        var item = new ManagedKnowledgeItem(
+                "faq-day20",
+                "tenant-demo",
+                "FAQ",
+                "Day20 知识管理 API",
+                "知识内容未变化时不重复生成相同向量。",
+                "day20#faq",
+                "2026-06-30",
+                List.of("day20"));
+
+        var first = service.indexItem(item);
+        var second = service.indexItem(item);
+
+        assertThat(first.skipped()).isFalse();
+        assertThat(second.skipped()).isTrue();
+        assertThat(vectorStore.addCalls).isEqualTo(1);
     }
 
     private void writeKnowledge(
@@ -130,9 +195,12 @@ class KnowledgeRetrievalServiceTest {
 
         private Filter.Expression deletedExpression;
         private List<Document> addedDocuments = List.of();
+        private int addCalls;
+        private int deleteCalls;
 
         @Override
         public void add(List<Document> documents) {
+            addCalls++;
             addedDocuments = List.copyOf(documents);
         }
 
@@ -142,6 +210,7 @@ class KnowledgeRetrievalServiceTest {
 
         @Override
         public void delete(Filter.Expression filterExpression) {
+            deleteCalls++;
             deletedExpression = filterExpression;
         }
 
