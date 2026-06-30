@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: customer-mcp-server
+  main:
+    banner-mode: off
+    web-application-type: none
+  ai:
+    mcp:
+      server:
+        enabled: true
+        name: customer-mcp-server
+        version: 0.1.0-SNAPSHOT
+        stdio: true
+        instructions: >
+          Exposes read-only tenant-scoped customer service tools.
+          High-risk operations such as refund execution, order cancellation,
+          rescheduling, production API calls and DDL are not available.
+        capabilities:
+          tool: true
+
+logging:
+  file:
+    name: ${CUSTOMER_MCP_LOG_FILE:target/customer-mcp-server.log}

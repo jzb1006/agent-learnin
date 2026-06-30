@@ -136,6 +136,8 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 18 | 已完成 | 2026-06-30 | [引入 pgvector](day-18-pgvector.md) |
 | Day 19 | 已完成 | 2026-06-30 | [多租户隔离](day-19-multi-tenant-isolation.md) |
 | Day 20 | 已完成 | 2026-06-30 | [知识库管理 API](day-20-knowledge-management-api.md) |
+| Day 21 | 已完成 | 2026-06-30 | [设计 MCP 边界](day-21-mcp-boundary-design.md) |
+| Day 22 | 已完成 | 2026-06-30 | [实现 MCP Server](day-22-mcp-server.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
