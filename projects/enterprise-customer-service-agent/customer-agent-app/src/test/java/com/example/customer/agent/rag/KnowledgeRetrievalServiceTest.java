@@ -4,9 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
 
 class KnowledgeRetrievalServiceTest {
 
@@ -72,6 +78,28 @@ class KnowledgeRetrievalServiceTest {
         assertThat(results).isEmpty();
     }
 
+    @Test
+    void shouldDeleteExistingKnowledgeByTenantBeforeReindex() throws Exception {
+        writeKnowledge(
+                "default/faq/learning-readiness.md",
+                "课程适合哪些学员",
+                "unit-test#Q1",
+                "default",
+                "FAQ",
+                "课程面向有编程经验的开发者。");
+        var vectorStore = new RecordingVectorStore();
+        var service = new KnowledgeRetrievalService(
+                vectorStore, new KnowledgeDocumentLoader(knowledgeBaseRoot), new KnowledgeDocumentSplitter());
+
+        service.reindex();
+
+        assertThat(vectorStore.deletedExpression).isNotNull();
+        assertThat(vectorStore.deletedExpression.type()).isEqualTo(Filter.ExpressionType.EQ);
+        assertThat(vectorStore.deletedExpression.left()).isEqualTo(new Filter.Key("tenant"));
+        assertThat(vectorStore.deletedExpression.right()).isEqualTo(new Filter.Value("default"));
+        assertThat(vectorStore.addedDocuments).isNotEmpty();
+    }
+
     private void writeKnowledge(
             String relativePath,
             String title,
@@ -96,5 +124,30 @@ class KnowledgeRetrievalServiceTest {
 
                 %s
                 """.formatted(title, source, tenant, category, title, content));
+    }
+
+    private static class RecordingVectorStore implements VectorStore {
+
+        private Filter.Expression deletedExpression;
+        private List<Document> addedDocuments = List.of();
+
+        @Override
+        public void add(List<Document> documents) {
+            addedDocuments = List.copyOf(documents);
+        }
+
+        @Override
+        public void delete(List<String> idList) {
+        }
+
+        @Override
+        public void delete(Filter.Expression filterExpression) {
+            deletedExpression = filterExpression;
+        }
+
+        @Override
+        public List<Document> similaritySearch(SearchRequest request) {
+            return new ArrayList<>();
+        }
     }
 }

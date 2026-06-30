@@ -133,6 +133,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 15 | 已完成 | 2026-06-29 | [Tool Calling 集成](day-15-tool-calling-integration.md) |
 | Day 16 | 已完成 | 2026-06-29 | [整理知识库结构](day-16-knowledge-base-structure.md) |
 | Day 17 | 已完成 | 2026-06-29 | [接入 Spring AI RAG](day-17-spring-ai-rag.md) |
+| Day 18 | 进行中 | - | [引入 pgvector](day-18-pgvector.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
@@ -560,6 +561,7 @@ knowledge-base/
 目标：
 
 - 支持知识库增删和重建索引。
+- 将 Day 18 的启动全量重建索引改为显式 API / 增量索引流程，应用启动只做连接和表结构校验。
 - Web 调试台能展示 RAG 来源和知识库调试结果。
 
 接口：
@@ -574,6 +576,8 @@ POST /api/v1/knowledge/reindex
 
 - 新增知识无需重启即可检索。
 - 删除知识后不再命中。
+- 重启应用不会自动删除并重建全部向量数据。
+- 知识内容未变化时，不重复调用 Embedding 模型生成相同向量。
 
 ## 阶段 5：MCP、Memory、安全与审批
 

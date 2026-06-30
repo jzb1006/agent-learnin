@@ -4,6 +4,7 @@ import com.example.customer.domain.support.DomainText;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
@@ -41,8 +42,8 @@ public class KnowledgeRetrievalService {
      * 重建本地知识索引。
      */
     public synchronized void reindex() {
-        vectorStore.delete(new FilterExpressionBuilder().isNotNull("path").build());
         var documents = documentLoader.read();
+        deleteExistingTenantKnowledge(documents);
         var chunks = documentSplitter.split(documents);
         if (chunks.isEmpty()) {
             log.warn("rag_knowledge_reindex_empty");
@@ -86,6 +87,20 @@ public class KnowledgeRetrievalService {
                 normalizedQuery.length(),
                 results.size());
         return List.copyOf(results);
+    }
+
+    private void deleteExistingTenantKnowledge(List<Document> documents) {
+        var tenants = documents.stream()
+                .map(document -> document.getMetadata().get("tenant"))
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .filter(tenant -> !tenant.isBlank())
+                .distinct()
+                .toList();
+        var expressionBuilder = new FilterExpressionBuilder();
+        for (var tenant : tenants) {
+            vectorStore.delete(expressionBuilder.eq("tenant", tenant).build());
+        }
     }
 
     private KnowledgeSearchResult toResult(Document document) {

@@ -1,9 +1,14 @@
 package com.example.customer.agent;
 
 import com.example.customer.agent.config.CustomerAgentProperties;
+import org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration;
+import org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
 
 /**
  * 客服 Agent 应用入口。
@@ -13,8 +18,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * @author jiangzhibin
  * @since 2026-06-27 08:29:00
  */
-@SpringBootApplication
-@EnableConfigurationProperties(CustomerAgentProperties.class)
+@SpringBootApplication(
+        exclude = {
+            PgVectorStoreAutoConfiguration.class,
+            DataSourceAutoConfiguration.class,
+            JdbcTemplateAutoConfiguration.class
+        })
+@EnableConfigurationProperties({CustomerAgentProperties.class, DataSourceProperties.class, PgVectorStoreProperties.class})
 public class CustomerAgentApplication {
 
     private static final String MODULE_NAME = "customer-agent-app";

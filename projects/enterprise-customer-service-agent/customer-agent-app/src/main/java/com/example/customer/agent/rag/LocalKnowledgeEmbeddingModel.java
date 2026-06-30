@@ -1,8 +1,10 @@
 package com.example.customer.agent.rag;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -19,7 +21,7 @@ import org.springframework.ai.embedding.EmbeddingResponse;
  */
 public class LocalKnowledgeEmbeddingModel implements EmbeddingModel {
 
-    private static final int DIMENSIONS = 128;
+    private static final int DIMENSIONS = 1536;
 
     @Override
     public EmbeddingResponse call(EmbeddingRequest request) {
@@ -43,45 +45,46 @@ public class LocalKnowledgeEmbeddingModel implements EmbeddingModel {
 
     private float[] vectorize(String value) {
         var vector = new float[DIMENSIONS];
+        var seenTokens = new HashSet<String>();
         var text = value == null ? "" : value.toLowerCase(Locale.ROOT);
-        addAsciiTokens(vector, text);
-        addCjkTokens(vector, text);
+        addAsciiTokens(vector, text, seenTokens);
+        addCjkTokens(vector, text, seenTokens);
         normalize(vector);
         return vector;
     }
 
-    private void addAsciiTokens(float[] vector, String text) {
+    private void addAsciiTokens(float[] vector, String text, Set<String> seenTokens) {
         var token = new StringBuilder();
         for (var index = 0; index < text.length(); index++) {
             var ch = text.charAt(index);
             if (Character.isLetterOrDigit(ch)) {
                 token.append(ch);
             } else if (!token.isEmpty()) {
-                addToken(vector, token.toString(), 1.0f);
+                addToken(vector, token.toString(), 1.0f, seenTokens);
                 token.setLength(0);
             }
         }
         if (!token.isEmpty()) {
-            addToken(vector, token.toString(), 1.0f);
+            addToken(vector, token.toString(), 1.0f, seenTokens);
         }
     }
 
-    private void addCjkTokens(float[] vector, String text) {
+    private void addCjkTokens(float[] vector, String text, Set<String> seenTokens) {
         var cjkChars = new ArrayList<String>();
         for (var index = 0; index < text.length(); index++) {
             var ch = text.charAt(index);
             if (isCjk(ch)) {
                 var token = String.valueOf(ch);
                 cjkChars.add(token);
-                addToken(vector, token, 0.35f);
+                addToken(vector, token, 0.35f, seenTokens);
             }
         }
-        addCjkBigrams(vector, cjkChars);
+        addCjkBigrams(vector, cjkChars, seenTokens);
     }
 
-    private void addCjkBigrams(float[] vector, List<String> cjkChars) {
+    private void addCjkBigrams(float[] vector, List<String> cjkChars, Set<String> seenTokens) {
         for (var index = 0; index + 1 < cjkChars.size(); index++) {
-            addToken(vector, cjkChars.get(index) + cjkChars.get(index + 1), 1.0f);
+            addToken(vector, cjkChars.get(index) + cjkChars.get(index + 1), 1.0f, seenTokens);
         }
     }
 
@@ -89,7 +92,10 @@ public class LocalKnowledgeEmbeddingModel implements EmbeddingModel {
         return Character.UnicodeScript.of(value) == Character.UnicodeScript.HAN;
     }
 
-    private void addToken(float[] vector, String token, float weight) {
+    private void addToken(float[] vector, String token, float weight, Set<String> seenTokens) {
+        if (!seenTokens.add(token)) {
+            return;
+        }
         var bucket = Math.floorMod(token.hashCode(), vector.length);
         vector[bucket] += weight;
     }

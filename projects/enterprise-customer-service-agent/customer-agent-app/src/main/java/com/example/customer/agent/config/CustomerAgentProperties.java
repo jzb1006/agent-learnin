@@ -65,6 +65,16 @@ public class CustomerAgentProperties {
     public static class KnowledgeBase {
 
         /**
+         * Embedding 模型模式。
+         */
+        private EmbeddingMode embeddingMode = EmbeddingMode.LOCAL;
+
+        /**
+         * 向量库类型。
+         */
+        private VectorStoreType vectorStoreType = VectorStoreType.SIMPLE;
+
+        /**
          * 本地 Markdown 知识库根目录。
          */
         @NotBlank
@@ -80,5 +90,41 @@ public class CustomerAgentProperties {
          * 默认召回条数。
          */
         private int topK = 3;
+
+        /**
+         * 知识库 embedding 来源。
+         *
+         * @author jiangzhibin
+         * @since 2026-06-29 18:15:00
+         */
+        public enum EmbeddingMode {
+            /**
+             * 使用本地确定性 fallback embedding。
+             */
+            LOCAL,
+
+            /**
+             * 使用 Spring AI 自动配置的真实 EmbeddingModel。
+             */
+            MODEL
+        }
+
+        /**
+         * 知识库向量存储类型。
+         *
+         * @author jiangzhibin
+         * @since 2026-06-29 18:15:00
+         */
+        public enum VectorStoreType {
+            /**
+             * 使用内存 SimpleVectorStore。
+             */
+            SIMPLE,
+
+            /**
+             * 使用 PostgreSQL pgvector。
+             */
+            PGVECTOR
+        }
     }
 }

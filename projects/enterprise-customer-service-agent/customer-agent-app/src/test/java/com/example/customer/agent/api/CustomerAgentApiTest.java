@@ -29,7 +29,10 @@ import tools.jackson.databind.ObjectMapper;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "customer-agent.chat-model.enabled=false",
-                "spring.ai.model.chat=none"
+                "spring.ai.model.chat=none",
+                "spring.ai.openai.base-url=",
+                "spring.ai.openai.chat.base-url=https://api.deepseek.com",
+                "spring.ai.openai.chat.model=deepseek-v4-flash"
         })
 class CustomerAgentApiTest {
 
@@ -53,7 +56,7 @@ class CustomerAgentApiTest {
         assertThat(properties.getTraceIdPrefix()).isEqualTo("trace");
         assertThat(properties.getChatModel().isEnabled()).isFalse();
         assertThat(environment.getProperty("spring.ai.model.chat")).isEqualTo("none");
-        assertThat(environment.getProperty("spring.ai.openai.base-url")).isEqualTo("https://api.deepseek.com");
+        assertThat(environment.getProperty("spring.ai.openai.chat.base-url")).isEqualTo("https://api.deepseek.com");
         assertThat(environment.getProperty("spring.ai.openai.chat.model")).isEqualTo("deepseek-v4-flash");
     }
 
