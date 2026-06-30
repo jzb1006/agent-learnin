@@ -4,6 +4,7 @@ import com.example.customer.agent.chat.ChatModelException;
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderNotFoundException;
+import com.example.customer.agent.tenant.TenantResolutionException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.UUID;
@@ -82,6 +83,27 @@ public class GlobalApiExceptionHandler {
         var status = HttpStatus.BAD_GATEWAY;
         log.error("api_error errorCode=CHAT_MODEL_ERROR path={}", request.getRequestURI(), exception);
         var body = error(status, "CHAT_MODEL_ERROR", exception.getMessage(), request);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    /**
+     * 转换租户解析异常。
+     *
+     * @param exception 租户解析异常
+     * @param request HTTP 请求
+     * @return 400 错误响应
+     */
+    @ExceptionHandler(TenantResolutionException.class)
+    public ResponseEntity<ApiErrorResponse> handleTenantResolutionError(
+            TenantResolutionException exception,
+            HttpServletRequest request) {
+        var status = HttpStatus.BAD_REQUEST;
+        log.warn(
+                "api_error errorCode={} path={} message={}",
+                exception.errorCode(),
+                request.getRequestURI(),
+                exception.getMessage());
+        var body = error(status, exception.errorCode(), exception.getMessage(), request);
         return ResponseEntity.status(status).body(body);
     }
 

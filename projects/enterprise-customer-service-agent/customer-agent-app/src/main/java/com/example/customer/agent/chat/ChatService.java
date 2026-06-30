@@ -5,6 +5,7 @@ import com.example.customer.agent.intent.IntentRouteResult;
 import com.example.customer.agent.intent.IntentRouter;
 import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderResponse;
+import com.example.customer.agent.tenant.TenantContext;
 import com.example.customer.agent.tool.OrderLookupTool;
 import com.example.customer.agent.tool.RefundPolicyCheckTool;
 import com.example.customer.agent.tool.RetrieveKnowledgeTool;
@@ -49,15 +50,16 @@ public class ChatService {
      */
     public CustomerAgentResponse reply(ChatRequest request) {
         var message = request.message() == null ? "" : request.message();
+        var tenantId = TenantContext.currentTenantId().orElse(request.tenantId());
         var routeResult = intentRouter.route(message);
         var orderId = orderIdFor(routeResult);
         var riskLevel = riskLevelFor(routeResult.route());
         var traceId = RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
-        var toolExecution = executeTool(routeResult.route(), message, orderId, request.tenantId());
+        var toolExecution = executeTool(routeResult.route(), message, orderId, tenantId);
         var orderResponse = toolExecution.order();
         log.info(
                 "chat_reply_start tenantId={} route={} orderId={} messageLength={} modelEnabled={}",
-                request.tenantId(),
+                tenantId,
                 routeResult.route().name(),
                 orderId,
                 message.length(),
@@ -65,12 +67,12 @@ public class ChatService {
         var response = properties.getChatModel().isEnabled()
                         && routeResult.route() == ConversationRoute.ORDER_LOOKUP
                         && orderResponse != null
-                ? modelResponse(request.tenantId(), message, toolExecution, routeResult.route(), riskLevel, traceId)
+                ? modelResponse(tenantId, message, toolExecution, routeResult.route(), riskLevel, traceId)
                 : deterministicResponse(routeResult, toolExecution, riskLevel, traceId);
 
         log.info(
                 "chat_reply_success tenantId={} orderId={} route={} riskLevel={} traceId={}",
-                request.tenantId(),
+                tenantId,
                 orderId,
                 routeResult.route().name(),
                 riskLevel.name(),
@@ -93,7 +95,7 @@ public class ChatService {
 
     private ToolExecution executeKnowledgeRetrieval(String query) {
         var knowledgeBase = properties.getKnowledgeBase();
-        var tenantId = knowledgeBase.getDefaultTenantId();
+        var tenantId = TenantContext.currentTenantId().orElse(knowledgeBase.getDefaultTenantId());
         var startedAtNanos = System.nanoTime();
         var toolResult = retrieveKnowledgeTool.search(query, tenantId, knowledgeBase.getTopK());
         var durationMs = elapsedMillis(startedAtNanos);

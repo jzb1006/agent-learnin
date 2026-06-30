@@ -118,8 +118,16 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function tenantHeaders(tenantId: string): Record<string, string> {
+  return {
+    'X-Tenant-ID': tenantId.trim()
+  };
+}
+
 function DebugDashboard() {
   const [tenantId, setTenantId] = useState(initialOrder.tenantId);
+  const [orderId, setOrderId] = useState(initialOrder.id);
+  const [orderLookupId, setOrderLookupId] = useState(initialOrder.id);
   const [message, setMessage] = useState(`帮我查询订单 ${initialOrder.id} 什么时候开课`);
   const [chat, setChat] = useState(initialChat);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -130,14 +138,20 @@ function DebugDashboard() {
     initialData: initialHealth
   });
   const orderQuery = useQuery({
-    queryKey: ['order', initialOrder.id],
-    queryFn: () => requestJson<OrderResponse>(`/api/orders/${initialOrder.id}`),
-    initialData: initialOrder
+    queryKey: ['order', orderLookupId, tenantId.trim()],
+    queryFn: () =>
+      requestJson<OrderResponse>(`/api/orders/${orderLookupId}`, {
+        headers: tenantHeaders(tenantId)
+      }),
+    enabled: tenantId.trim().length > 0 && orderLookupId.trim().length > 0,
+    initialData: initialOrder,
+    retry: false
   });
   const chatMutation = useMutation({
     mutationFn: (payload: ChatRequestPayload) =>
       requestJson<CustomerAgentResponse>('/chat', {
         method: 'POST',
+        headers: tenantHeaders(payload.tenantId),
         body: JSON.stringify(payload)
       }),
     onError: (error) => {
@@ -150,7 +164,18 @@ function DebugDashboard() {
   });
   const health = healthQuery.data;
   const order = orderQuery.data;
+  const orderError = orderQuery.error instanceof Error ? orderQuery.error.message : null;
+  const normalizedOrderId = orderId.trim();
+  const canQueryOrder = tenantId.trim().length > 0 && normalizedOrderId.length > 0;
+  const isOrderLookupPending = orderQuery.isFetching && orderLookupId === normalizedOrderId;
   const canSubmitChat = tenantId.trim().length > 0 && message.trim().length > 0;
+
+  function submitOrderLookup() {
+    if (!canQueryOrder) {
+      return;
+    }
+    setOrderLookupId(normalizedOrderId);
+  }
 
   function submitChat() {
     if (!canSubmitChat) {
@@ -180,6 +205,23 @@ function DebugDashboard() {
           </Card>
 
           <Card className="debug-panel" title="Order Debug">
+            <div className="order-debug-form">
+              <label className="field-label" htmlFor="order-id">
+                订单号
+              </label>
+              <Input id="order-id" value={orderId} onChange={(event) => setOrderId(event.target.value)} />
+              <Button
+                aria-label="查询订单"
+                className="order-query-button"
+                disabled={!canQueryOrder}
+                loading={isOrderLookupPending}
+                onClick={submitOrderLookup}
+                type="primary"
+              >
+                查询订单
+              </Button>
+            </div>
+            {orderError ? <Alert className="order-debug-alert" message={orderError} showIcon type="error" /> : null}
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Order">{order.id}</Descriptions.Item>
               <Descriptions.Item label="Tenant">{order.tenantId}</Descriptions.Item>

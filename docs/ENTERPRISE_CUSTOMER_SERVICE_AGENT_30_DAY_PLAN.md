@@ -133,7 +133,8 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 15 | 已完成 | 2026-06-29 | [Tool Calling 集成](day-15-tool-calling-integration.md) |
 | Day 16 | 已完成 | 2026-06-29 | [整理知识库结构](day-16-knowledge-base-structure.md) |
 | Day 17 | 已完成 | 2026-06-29 | [接入 Spring AI RAG](day-17-spring-ai-rag.md) |
-| Day 18 | 进行中 | - | [引入 pgvector](day-18-pgvector.md) |
+| Day 18 | 已完成 | 2026-06-30 | [引入 pgvector](day-18-pgvector.md) |
+| Day 19 | 已完成 | 2026-06-30 | [多租户隔离](day-19-multi-tenant-isolation.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 

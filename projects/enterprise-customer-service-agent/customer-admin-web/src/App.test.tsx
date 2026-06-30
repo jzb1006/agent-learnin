@@ -35,6 +35,15 @@ const orderResponse = {
   paidAt: '2026-06-01T10:00:00Z'
 };
 
+const legacyOrderResponse = {
+  id: 'order-legacy-paid',
+  tenantId: 'tenant-demo',
+  customerId: 'customer-1002',
+  productName: '企业级 AI Agent 架构班',
+  status: 'PAID',
+  paidAt: '2026-02-01T10:00:00Z'
+};
+
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -68,6 +77,8 @@ describe('App', () => {
 
     expect(html).toContain('Customer Agent Debug Console');
     expect(html).toContain('Service UP');
+    expect(html).toContain('订单号');
+    expect(html).toContain('查询订单');
     expect(html).toContain('order-1001');
     expect(html).toContain('企业级 AI Agent 实战营');
     expect(html).toContain('Request Inspector');
@@ -80,6 +91,74 @@ describe('App', () => {
     expect(html).toContain('READ_ONLY');
   });
 
+  it('queries orders from the visible order debug form', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path === '/health') {
+        return jsonResponse({ status: 'UP', service: 'customer-agent-app' });
+      }
+      if (path === '/api/orders/order-1001') {
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(orderResponse);
+      }
+      if (path === '/api/orders/order-legacy-paid') {
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(legacyOrderResponse);
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('订单号'));
+    await user.type(screen.getByLabelText('订单号'), 'order-legacy-paid');
+    await user.click(screen.getByRole('button', { name: '查询订单' }));
+
+    await waitFor(() => expect(screen.getByText('企业级 AI Agent 架构班')).toBeTruthy());
+    expect(screen.getByText('order-legacy-paid')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/orders/order-legacy-paid',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' })
+      })
+    );
+  });
+
+  it('does not retry missing order lookups', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path === '/health') {
+        return jsonResponse({ status: 'UP', service: 'customer-agent-app' });
+      }
+      if (path === '/api/orders/order-1001') {
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return jsonResponse(orderResponse);
+      }
+      if (path === '/api/orders/missing-order') {
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        return errorResponse({
+          errorCode: 'ORDER_NOT_FOUND',
+          message: '订单不存在：missing-order',
+          status: 404
+        });
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('订单号'));
+    await user.type(screen.getByLabelText('订单号'), 'missing-order');
+    await user.click(screen.getByRole('button', { name: '查询订单' }));
+
+    await waitFor(() => expect(screen.getByText('订单不存在：missing-order')).toBeTruthy());
+    expect(
+      fetchMock.mock.calls.filter(([input]) => String(input) === '/api/orders/missing-order')
+    ).toHaveLength(1);
+  });
+
   it('sends custom chat messages from the debug console', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const path = String(input);
@@ -87,10 +166,12 @@ describe('App', () => {
         return jsonResponse({ status: 'UP', service: 'customer-agent-app' });
       }
       if (path === '/api/orders/order-1001') {
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
         return jsonResponse(orderResponse);
       }
       if (path === '/chat') {
         expect(init?.method).toBe('POST');
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
         expect(JSON.parse(String(init?.body))).toEqual({
           tenantId: 'tenant-demo',
           message: '帮我查订单 order-1001'
@@ -138,6 +219,17 @@ function jsonResponse(body: unknown) {
         'Content-Type': 'application/json'
       },
       status: 200
+    })
+  );
+}
+
+function errorResponse(body: unknown) {
+  return Promise.resolve(
+    new Response(JSON.stringify(body), {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      status: 404
     })
   );
 }

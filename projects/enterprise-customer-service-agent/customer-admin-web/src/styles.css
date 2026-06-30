@@ -56,6 +56,21 @@ body {
   grid-column: 1 / -1;
 }
 
+.order-debug-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.order-query-button {
+  justify-self: start;
+  min-width: 104px;
+}
+
+.order-debug-alert {
+  margin-bottom: 16px;
+}
+
 .chat-workbench {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
@@ -204,6 +219,10 @@ body {
   }
 
   .send-button {
+    width: 100%;
+  }
+
+  .order-query-button {
     width: 100%;
   }
 

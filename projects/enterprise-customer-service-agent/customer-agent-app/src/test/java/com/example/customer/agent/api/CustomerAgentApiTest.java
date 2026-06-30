@@ -105,7 +105,7 @@ class CustomerAgentApiTest {
 
     @Test
     void shouldReturnMockOrderById() throws Exception {
-        var response = get("/api/orders/order-1001", "trace-api-test");
+        var response = get("/api/orders/order-1001", "trace-api-test", "tenant-demo");
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(200);
@@ -118,8 +118,43 @@ class CustomerAgentApiTest {
     }
 
     @Test
+    void shouldRejectTenantScopedApiWithoutTenantHeader() throws Exception {
+        var response = get("/api/orders/order-1001", "trace-missing-tenant");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.headers().firstValue("X-Trace-Id")).hasValue("trace-missing-tenant");
+        assertThat(body.path("errorCode").asText()).isEqualTo("TENANT_REQUIRED");
+        assertThat(body.path("message").asText()).contains("X-Tenant-ID");
+        assertThat(body.path("path").asText()).isEqualTo("/api/orders/order-1001");
+        assertThat(body.path("traceId").asText()).isEqualTo("trace-missing-tenant");
+    }
+
+    @Test
+    void shouldRejectUnsafeTenantHeader() throws Exception {
+        var response = get("/api/orders/order-1001", "trace-invalid-tenant", "tenant demo");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(body.path("errorCode").asText()).isEqualTo("TENANT_INVALID");
+        assertThat(body.path("message").asText()).contains("X-Tenant-ID");
+        assertThat(body.path("traceId").asText()).isEqualTo("trace-invalid-tenant");
+    }
+
+    @Test
+    void shouldNotExposeOrderAcrossTenantHeader() throws Exception {
+        var response = get("/api/orders/order-1001", "trace-cross-tenant-order", "tenant-other");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(body.path("errorCode").asText()).isEqualTo("ORDER_NOT_FOUND");
+        assertThat(body.path("message").asText()).contains("order-1001");
+        assertThat(body.path("traceId").asText()).isEqualTo("trace-cross-tenant-order");
+    }
+
+    @Test
     void shouldReturnNotFoundForMissingOrder() throws Exception {
-        var response = get("/api/orders/missing-order", "trace-missing-order");
+        var response = get("/api/orders/missing-order", "trace-missing-order", "tenant-demo");
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(404);
@@ -141,7 +176,7 @@ class CustomerAgentApiTest {
                 }
                 """;
 
-        var response = post("/chat", requestBody, "trace-chat-test");
+        var response = post("/chat", requestBody, "trace-chat-test", "tenant-demo");
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(200);
@@ -161,6 +196,40 @@ class CustomerAgentApiTest {
         assertThat(body.path("toolCalls").get(0).path("resultSummary").asText()).contains("PAID");
     }
 
+    @Test
+    void shouldUseTenantHeaderInsteadOfChatBodyTenant() throws Exception {
+        var requestBody = """
+                {
+                  "tenantId": "tenant-other",
+                  "message": "帮我查询订单 order-1001 什么时候开课"
+                }
+                """;
+
+        var response = post("/chat", requestBody, "trace-chat-tenant-header", "tenant-demo");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(body.path("route").asText()).isEqualTo("ORDER_LOOKUP");
+        assertThat(body.path("answer").asText()).contains("企业级 AI Agent 实战营");
+        assertThat(body.path("toolCalls").get(0).path("arguments").path("tenantId").asText()).isEqualTo("tenant-demo");
+    }
+
+    @Test
+    void shouldAcceptChatTenantFromHeaderWithoutBodyTenant() throws Exception {
+        var requestBody = """
+                {
+                  "message": "帮我查询订单 order-1001 什么时候开课"
+                }
+                """;
+
+        var response = post("/chat", requestBody, "trace-chat-header-only", "tenant-demo");
+        var body = json(response.body());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(body.path("route").asText()).isEqualTo("ORDER_LOOKUP");
+        assertThat(body.path("toolCalls").get(0).path("arguments").path("tenantId").asText()).isEqualTo("tenant-demo");
+    }
+
     @ParameterizedTest
     @MethodSource("stage2ChatScenarios")
     void shouldRouteStage2ChatScenariosThroughChatApi(
@@ -176,7 +245,8 @@ class CustomerAgentApiTest {
                 }
                 """.formatted(message);
 
-        var response = post("/chat", requestBody, traceId);
+        var tenantId = "KNOWLEDGE_QA".equals(expectedRoute) ? "default" : "tenant-demo";
+        var response = post("/chat", requestBody, traceId, tenantId);
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(200);
@@ -202,7 +272,7 @@ class CustomerAgentApiTest {
                 }
                 """;
 
-        var response = post("/chat", requestBody, "trace-refund-intent-test");
+        var response = post("/chat", requestBody, "trace-refund-intent-test", "tenant-demo");
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(200);
@@ -228,7 +298,7 @@ class CustomerAgentApiTest {
                 }
                 """;
 
-        var response = post("/chat", requestBody, "trace-validation-test");
+        var response = post("/chat", requestBody, "trace-validation-test", "tenant-demo");
         var body = json(response.body());
 
         assertThat(response.statusCode()).isEqualTo(400);
@@ -253,6 +323,15 @@ class CustomerAgentApiTest {
         return httpClient.send(request, BodyHandlers.ofString());
     }
 
+    private HttpResponse<String> get(String path, String traceId, String tenantId) throws Exception {
+        var request = HttpRequest.newBuilder(uri(path))
+                .header("X-Trace-Id", traceId)
+                .header("X-Tenant-ID", tenantId)
+                .GET()
+                .build();
+        return httpClient.send(request, BodyHandlers.ofString());
+    }
+
     private HttpResponse<String> post(String path, String body) throws Exception {
         var request = HttpRequest.newBuilder(uri(path))
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
@@ -265,6 +344,16 @@ class CustomerAgentApiTest {
         var request = HttpRequest.newBuilder(uri(path))
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .header("X-Trace-Id", traceId)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> post(String path, String body, String traceId, String tenantId) throws Exception {
+        var request = HttpRequest.newBuilder(uri(path))
+                .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .header("X-Trace-Id", traceId)
+                .header("X-Tenant-ID", tenantId)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         return httpClient.send(request, BodyHandlers.ofString());

@@ -1,6 +1,7 @@
 package com.example.customer.agent.observability;
 
 import com.example.customer.agent.config.CustomerAgentProperties;
+import com.example.customer.agent.tenant.TenantResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +33,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
-    public static final String TENANT_ID_HEADER = "X-Tenant-Id";
     private static final int MAX_CONTEXT_VALUE_LENGTH = 128;
     private static final Pattern SAFE_CONTEXT_VALUE = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
 
@@ -56,7 +56,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         var traceId = safeHeaderValue(request.getHeader(TRACE_ID_HEADER))
                 .orElseGet(() -> properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
         var requestId = safeHeaderValue(request.getHeader(REQUEST_ID_HEADER)).orElseGet(() -> UUID.randomUUID().toString());
-        var tenantId = safeHeaderValue(request.getHeader(TENANT_ID_HEADER)).orElse("-");
+        var tenantId = safeHeaderValue(request.getHeader(TenantResolver.TENANT_ID_HEADER)).orElse("-");
 
         MDC.put(RequestTraceContext.TRACE_ID, traceId);
         MDC.put(RequestTraceContext.REQUEST_ID, requestId);

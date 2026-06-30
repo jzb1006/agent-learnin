@@ -3,6 +3,7 @@ package com.example.customer.agent.api;
 import com.example.customer.agent.chat.ChatRequest;
 import com.example.customer.agent.chat.CustomerAgentResponse;
 import com.example.customer.agent.chat.ChatService;
+import com.example.customer.agent.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,8 @@ public class ChatController {
      */
     @PostMapping("/chat")
     public CustomerAgentResponse chat(@Valid @RequestBody ChatRequest request) {
-        log.info("chat_api_request tenantId={} messageLength={}", request.tenantId(), request.message().length());
+        var tenantId = TenantContext.requireCurrentTenantId();
+        log.info("chat_api_request tenantId={} messageLength={}", tenantId, request.message().length());
         return chatService.reply(request);
     }
 }

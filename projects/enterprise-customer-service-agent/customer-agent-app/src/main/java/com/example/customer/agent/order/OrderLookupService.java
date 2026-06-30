@@ -24,14 +24,15 @@ public class OrderLookupService {
      * 获取订单。
      *
      * @param orderId 订单标识
+     * @param tenantId 租户标识
      * @return 客户订单
      * @throws OrderNotFoundException 订单不存在时抛出
      */
-    public CustomerOrder getOrder(String orderId) {
-        log.info("order_lookup_start orderId={}", orderId);
-        var order = orderRepository.findById(orderId);
+    public CustomerOrder getOrder(String orderId, String tenantId) {
+        log.info("order_lookup_start orderId={} tenantId={}", orderId, tenantId);
+        var order = orderRepository.findByIdAndTenantId(orderId, tenantId);
         if (order.isEmpty()) {
-            log.warn("order_lookup_not_found orderId={}", orderId);
+            log.warn("order_lookup_not_found orderId={} tenantId={}", orderId, tenantId);
             throw new OrderNotFoundException(orderId);
         }
         log.info("order_lookup_success orderId={} tenantId={} status={}",

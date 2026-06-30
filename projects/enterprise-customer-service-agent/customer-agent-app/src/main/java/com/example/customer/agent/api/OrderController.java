@@ -2,6 +2,7 @@ package com.example.customer.agent.api;
 
 import com.example.customer.agent.order.OrderLookupService;
 import com.example.customer.agent.order.OrderResponse;
+import com.example.customer.agent.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +34,8 @@ public class OrderController {
      */
     @GetMapping("/{orderId}")
     public OrderResponse getOrder(@PathVariable("orderId") String orderId) {
-        log.info("order_api_request orderId={}", orderId);
-        return OrderResponse.from(orderLookupService.getOrder(orderId));
+        var tenantId = TenantContext.requireCurrentTenantId();
+        log.info("order_api_request orderId={} tenantId={}", orderId, tenantId);
+        return OrderResponse.from(orderLookupService.getOrder(orderId, tenantId));
     }
 }
