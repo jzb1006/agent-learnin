@@ -25,6 +25,12 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/customer_agent}
     username: ${SPRING_DATASOURCE_USERNAME:customer_agent}
     password: ${SPRING_DATASOURCE_PASSWORD:customer_agent_dev}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:127.0.0.1}
+      port: ${SPRING_DATA_REDIS_PORT:16379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:2s}
   ai:
     model:
       audio:
@@ -66,6 +72,12 @@ customer-agent:
     command: ${CUSTOMER_AGENT_MCP_CLIENT_COMMAND:java}
     server-jar: ${CUSTOMER_AGENT_MCP_CLIENT_SERVER_JAR:../customer-mcp-server/target/customer-mcp-server-0.1.0-SNAPSHOT.jar}
     request-timeout-seconds: ${CUSTOMER_AGENT_MCP_CLIENT_REQUEST_TIMEOUT_SECONDS:10}
+  conversation-memory:
+    storage: ${CUSTOMER_AGENT_MEMORY_STORAGE:redis}
+    max-message-chars: ${CUSTOMER_AGENT_MEMORY_MAX_MESSAGE_CHARS:80}
+    max-summary-chars: ${CUSTOMER_AGENT_MEMORY_MAX_SUMMARY_CHARS:320}
+    redis-key-prefix: ${CUSTOMER_AGENT_MEMORY_REDIS_KEY_PREFIX:customer-agent:conversation-memory}
+    ttl-seconds: ${CUSTOMER_AGENT_MEMORY_TTL_SECONDS:7200}
   knowledge-base:
     embedding-mode: ${CUSTOMER_AGENT_KNOWLEDGE_EMBEDDING_MODE:local}
     vector-store-type: ${CUSTOMER_AGENT_KNOWLEDGE_VECTOR_STORE_TYPE:simple}

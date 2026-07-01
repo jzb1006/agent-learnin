@@ -109,7 +109,8 @@ class ChatModelConfigurationTest {
                 Map.entry("spring.ai.openai.api-key", "test-key"),
                 Map.entry("spring.ai.openai.base-url", "https://api.deepseek.com"),
                 Map.entry("spring.ai.openai.chat.model", "deepseek-v4-flash"),
-                Map.entry("customer-agent.chat-model.enabled", "true")));
+                Map.entry("customer-agent.chat-model.enabled", "true"),
+                Map.entry("customer-agent.conversation-memory.storage", "in-memory")));
 
         try (var context = application.run()) {
             assertThat(context.getBean(CustomerChatModelClient.class))

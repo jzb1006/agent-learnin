@@ -13,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(properties = {
         "customer-agent.chat-model.enabled=false",
+        "customer-agent.conversation-memory.storage=in-memory",
         "customer-agent.knowledge-base.embedding-mode=local",
         "customer-agent.knowledge-base.vector-store-type=simple",
         "spring.ai.model.chat=none",

@@ -61,7 +61,13 @@ public class CustomerChatPromptTemplate {
                 Prompt 版本：%s
                 租户：%s
                 用户问题：%s
+                会话摘要：%s
                 事实证据：%s
-                """.formatted(version(), prompt.tenantId(), prompt.message(), prompt.orderEvidence());
+                """.formatted(
+                version(),
+                prompt.tenantId(),
+                prompt.message(),
+                prompt.memorySummary().isBlank() ? "无" : prompt.memorySummary(),
+                prompt.orderEvidence());
     }
 }

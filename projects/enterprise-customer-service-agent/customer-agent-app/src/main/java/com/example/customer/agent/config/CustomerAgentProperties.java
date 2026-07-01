@@ -46,6 +46,11 @@ public class CustomerAgentProperties {
     private McpClient mcpClient = new McpClient();
 
     /**
+     * 多轮会话记忆配置。
+     */
+    private ConversationMemory conversationMemory = new ConversationMemory();
+
+    /**
      * 控制客服对话是否调用真实 ChatModel。
      *
      * @author jiangzhibin
@@ -102,6 +107,60 @@ public class CustomerAgentProperties {
              * 通过 stdio 启动并调用真实 customer-mcp-server。
              */
             STDIO
+        }
+    }
+
+    /**
+     * 控制短期会话记忆和上下文压缩策略。
+     *
+     * @author jiangzhibin
+     * @since 2026-07-01 14:20:00
+     */
+    @Data
+    public static class ConversationMemory {
+
+        /**
+         * 短期记忆存储类型。
+         */
+        private Storage storage = Storage.IN_MEMORY;
+
+        /**
+         * 单条用户消息进入摘要前的最大字符数。
+         */
+        private int maxMessageChars = 80;
+
+        /**
+         * 会话摘要最大字符数。
+         */
+        private int maxSummaryChars = 320;
+
+        /**
+         * Redis 记忆 key 前缀。
+         */
+        @NotBlank
+        private String redisKeyPrefix = "customer-agent:conversation-memory";
+
+        /**
+         * Redis 记忆 TTL，单位秒。
+         */
+        private long ttlSeconds = 7200;
+
+        /**
+         * 短期记忆存储类型。
+         *
+         * @author jiangzhibin
+         * @since 2026-07-01 16:20:00
+         */
+        public enum Storage {
+            /**
+             * 进程内存储，适合本地测试。
+             */
+            IN_MEMORY,
+
+            /**
+             * Redis 存储，适合生产多实例。
+             */
+            REDIS
         }
     }
 

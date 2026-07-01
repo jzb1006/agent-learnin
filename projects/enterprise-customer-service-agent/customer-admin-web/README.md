@@ -12,7 +12,8 @@ Day 04 已接入基础 API 调试快照：
 
 - Health：展示 `GET /health` 状态。
 - Order Debug：展示 `GET /api/orders/order-1001` 结果。
-- Chat Console：展示 `POST /chat` 的 route、riskLevel、traceId、answer、sources 和 nextActions。
+- Chat Console：展示 `POST /chat` 的 route、riskLevel、traceId、conversationId、memorySummary、answer、sources 和 nextActions。
+- Memory Debug：通过固定会话 ID 连续发送“刚才那个订单”这类追问，验证 Day 24 短期上下文。
 
 后续逐步加入：
 

@@ -27,6 +27,7 @@ import tools.jackson.databind.ObjectMapper;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "customer-agent.chat-model.enabled=false",
+                "customer-agent.conversation-memory.storage=in-memory",
                 "customer-agent.knowledge-base.embedding-mode=local",
                 "customer-agent.knowledge-base.vector-store-type=simple",
                 "customer-agent.mcp-client.mode=stdio",

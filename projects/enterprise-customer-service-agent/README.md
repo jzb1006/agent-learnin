@@ -2,17 +2,17 @@
 
 ## 定位
 
-这是 30 天路线的主工程目录。当前已完成多模块骨架、核心领域模型、基础 REST API、本地调试台的第一条调用链、Spring AI ChatClient 的最小模型调用边界，以及 `/chat` 的本地意图识别 fallback。
+这是 30 天路线的主工程目录。当前已完成多模块骨架、核心领域模型、基础 REST API、本地调试台、Spring AI ChatClient、意图识别、结构化回复、Tool Calling、RAG、多租户、知识库管理、MCP Server / Client，以及 `/chat` 短期 Memory 与上下文压缩。
 
 ## 模块
 
 | 模块 | 职责 | 当前状态 |
 | --- | --- | --- |
 | `customer-domain` | 租户、订单、知识库、审批、trace 等领域模型 | Day 03 已补核心领域模型和单元测试 |
-| `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | Day 08 已补意图识别、模型回复和基础 API |
-| `customer-mcp-server` | MCP tools/resources/prompts 暴露 | Day 02 仅有模块锚点；Day 21 后实现 MCP |
-| `customer-admin-web` | 本地 Agent 调试台 | Day 04 已展示 health、订单查询和 chat 响应快照 |
-| `knowledge-base` | FAQ / 政策 / 产品知识样例 | Day 16 开始填充 |
+| `customer-agent-app` | Spring Boot 对话入口、Agent 编排、REST API | 已通过 MCP Client 调用工具，并支持 Redis 短期 Memory |
+| `customer-mcp-server` | MCP tools/resources/prompts 暴露 | 已暴露客服订单相关 tools/resources/prompts |
+| `customer-admin-web` | 本地 Agent 调试台 | 已展示 chat、tools、RAG sources、订单和 Memory 调试信息 |
+| `knowledge-base` | FAQ / 政策 / 产品知识样例 | 已填充默认租户知识库样例 |
 | `evals` | Agent 回归评测用例 | Day 29 开始填充 |
 | `traces` | 本地 trace 和审计样例 | Day 26 开始填充 |
 | `deploy` | Docker Compose、SQL、观测配置 | Day 18 后逐步填充 |
@@ -64,7 +64,7 @@ npm run dev
 
 ## 设计原则
 
-- KISS：先用 mock 订单和基础结构化响应跑通客服订单最小闭环。
-- YAGNI：不提前引入真实数据库、Redis、复杂 Agent Loop 或 MCP 工具实现。
+- KISS：每个 Day 只推进当前业务闭环需要的能力，Redis 仅用于短期 Memory，pgvector 仅用于知识库向量检索。
+- YAGNI：暂不实现复杂 Agent Loop、多 Agent、真实退款/取消/改签和完整运营后台。
 - DRY：版本集中在父 `pom.xml` 和前端 `package.json`，避免模块重复锁版本。
 - SOLID：领域、应用入口、MCP 暴露和调试台分离，后续可以独立演进和测试。

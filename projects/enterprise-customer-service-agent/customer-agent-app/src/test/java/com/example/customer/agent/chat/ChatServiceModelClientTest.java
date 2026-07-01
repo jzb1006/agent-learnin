@@ -218,6 +218,88 @@ class ChatServiceModelClientTest {
         assertThat(response.nextActions()).contains("记录人工转接意向");
     }
 
+    @Test
+    void shouldResolveContextualOrderReferenceFromSameConversationMemory() {
+        var service = chatService(properties(false), new RecordingChatModelClient(List.of()));
+
+        var firstResponse = service.reply(new ChatRequest(
+                "tenant-demo",
+                "帮我查询订单 order-1001 什么时候开课",
+                "conversation-day24"));
+        var secondResponse = service.reply(new ChatRequest(
+                "tenant-demo",
+                "刚才那个订单可以退款吗？",
+                "conversation-day24"));
+
+        assertThat(firstResponse.conversationId()).isEqualTo("conversation-day24");
+        assertThat(firstResponse.memorySummary()).contains("order-1001");
+        assertThat(secondResponse.route()).isEqualTo(ConversationRoute.REFUND_OR_CANCEL.name());
+        assertThat(secondResponse.sources()).containsExactly("order:order-1001");
+        assertThat(secondResponse.answer()).contains("退款政策前置检查");
+        assertThat(secondResponse.toolCalls()).singleElement()
+                .satisfies(toolCall -> {
+                    assertThat(toolCall.name()).isEqualTo("refund_policy_check");
+                    assertThat(toolCall.arguments()).containsEntry("orderId", "order-1001");
+                    assertThat(toolCall.arguments()).containsEntry("tenantId", "tenant-demo");
+                    assertThat(toolCall.status()).isEqualTo("SUCCEEDED");
+                });
+        assertThat(secondResponse.memorySummary()).contains("order-1001");
+    }
+
+    @Test
+    void shouldKeepConversationMemoryTenantScoped() {
+        var service = chatService(properties(false), new RecordingChatModelClient(List.of()));
+
+        service.reply(new ChatRequest("tenant-demo", "帮我查询订单 order-1001 什么时候开课", "conversation-shared"));
+        var response = service.reply(new ChatRequest("tenant-other", "刚才那个订单可以退款吗？", "conversation-shared"));
+
+        assertThat(response.route()).isEqualTo(ConversationRoute.REFUND_OR_CANCEL.name());
+        assertThat(response.sources()).isEmpty();
+        assertThat(response.answer()).contains("未找到可用于政策判断的订单证据");
+        assertThat(response.toolCalls()).isEmpty();
+    }
+
+    @Test
+    void shouldCompressConversationSummaryBeforeSendingPromptToModel() {
+        var properties = properties(true);
+        properties.getConversationMemory().setMaxSummaryChars(120);
+        properties.getConversationMemory().setMaxMessageChars(24);
+        var longMessage = "帮我查询订单 order-1001 什么时候开课，"
+                + "这里附带一段很长很长的上下文，".repeat(12)
+                + "请不要把原文完整塞进下一轮模型提示。";
+        var chatModelClient = new RecordingChatModelClient(List.of(
+                """
+                {
+                  "route": "ORDER_LOOKUP",
+                  "answer": "已查询到订单 order-1001。",
+                  "sources": ["order:order-1001"],
+                  "riskLevel": "READ_ONLY",
+                  "nextActions": ["展示订单状态"],
+                  "traceId": "trace-model-memory-1"
+                }
+                """,
+                """
+                {
+                  "route": "ORDER_LOOKUP",
+                  "answer": "刚才那个订单是企业级 AI Agent 实战营。",
+                  "sources": ["order:order-1001"],
+                  "riskLevel": "READ_ONLY",
+                  "nextActions": ["展示订单状态"],
+                  "traceId": "trace-model-memory-2"
+                }
+                """));
+        var service = chatService(properties, chatModelClient);
+
+        service.reply(new ChatRequest("tenant-demo", longMessage, "conversation-compress"));
+        service.reply(new ChatRequest("tenant-demo", "刚才那个订单是什么课程？", "conversation-compress"));
+
+        assertThat(chatModelClient.prompts()).hasSize(2);
+        var secondPrompt = chatModelClient.prompts().get(1);
+        assertThat(secondPrompt.memorySummary()).contains("order-1001");
+        assertThat(secondPrompt.memorySummary()).hasSizeLessThanOrEqualTo(120);
+        assertThat(secondPrompt.memorySummary()).doesNotContain("请不要把原文完整塞进下一轮模型提示");
+    }
+
     private static CustomerAgentProperties properties(boolean enabled) {
         var properties = new CustomerAgentProperties();
         properties.getChatModel().setEnabled(enabled);
@@ -237,7 +319,10 @@ class ChatServiceModelClientTest {
                 chatModelClient,
                 new IntentRouter(),
                 new CustomerAgentResponseParser(new tools.jackson.databind.ObjectMapper()),
-                mcpToolClient);
+                mcpToolClient,
+                new com.example.customer.agent.memory.InMemoryChatMemory(
+                        properties,
+                        new com.example.customer.agent.memory.ConversationSummaryCompressor(properties)));
     }
 
     private static final class RecordingChatModelClient implements CustomerChatModelClient {

@@ -34,6 +34,8 @@ type OrderResponse = {
 
 type CustomerAgentResponse = {
   traceId: string;
+  conversationId: string;
+  memorySummary: string;
   route: string;
   riskLevel: string;
   answer: string;
@@ -127,6 +129,8 @@ const initialOrder: OrderResponse = {
 
 const initialChat: CustomerAgentResponse = {
   traceId: 'trace-demo',
+  conversationId: 'debug-session',
+  memorySummary: '最近订单 order-1001；route=ORDER_LOOKUP；用户=帮我查询订单 order-1001 什么时候开课',
   route: 'ORDER_LOOKUP',
   riskLevel: 'READ_ONLY',
   answer: '已查询到订单 order-1001，课程为「企业级 AI Agent 实战营」，当前状态为 PAID。',
@@ -188,6 +192,7 @@ function DebugDashboard() {
   const [tenantId, setTenantId] = useState(initialOrder.tenantId);
   const [orderId, setOrderId] = useState(initialOrder.id);
   const [orderLookupId, setOrderLookupId] = useState(initialOrder.id);
+  const [conversationId, setConversationId] = useState(initialChat.conversationId);
   const [message, setMessage] = useState(`帮我查询订单 ${initialOrder.id} 什么时候开课`);
   const [chat, setChat] = useState(initialChat);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -336,7 +341,8 @@ function DebugDashboard() {
     }
     chatMutation.mutate({
       tenantId: tenantId.trim(),
-      message: message.trim()
+      message: message.trim(),
+      conversationId: conversationId.trim()
     });
   }
 
@@ -576,6 +582,15 @@ function DebugDashboard() {
                 </label>
                 <Input id="tenant-id" value={tenantId} onChange={(event) => setTenantId(event.target.value)} />
 
+                <label className="field-label" htmlFor="conversation-id">
+                  会话
+                </label>
+                <Input
+                  id="conversation-id"
+                  value={conversationId}
+                  onChange={(event) => setConversationId(event.target.value)}
+                />
+
                 <label className="field-label" htmlFor="chat-message">
                   用户消息
                 </label>
@@ -613,8 +628,15 @@ function DebugDashboard() {
                     <Descriptions.Item label="Trace ID">
                       <Typography.Text code>{chat.traceId}</Typography.Text>
                     </Descriptions.Item>
+                    <Descriptions.Item label="Conversation ID">
+                      <Typography.Text code>{chat.conversationId}</Typography.Text>
+                    </Descriptions.Item>
                   </Descriptions>
                 </section>
+
+                <Divider className="compact-divider" />
+                <Typography.Title level={3}>Memory</Typography.Title>
+                <Typography.Paragraph className="reply-text">{chat.memorySummary || '无会话摘要'}</Typography.Paragraph>
 
                 <Divider className="compact-divider" />
                 <Typography.Title level={3}>Answer</Typography.Title>
@@ -680,6 +702,7 @@ function DebugDashboard() {
 type ChatRequestPayload = {
   message: string;
   tenantId: string;
+  conversationId: string;
 };
 
 type KnowledgeItemPayload = {

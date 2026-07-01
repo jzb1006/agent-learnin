@@ -6,6 +6,8 @@ import App from './App';
 
 const chatResponse = {
   traceId: 'trace-live',
+  conversationId: 'debug-session',
+  memorySummary: '最近订单 order-1001；route=ORDER_LOOKUP；用户=帮我查订单 order-1001',
   route: 'ORDER_LOOKUP',
   riskLevel: 'READ_ONLY',
   answer: '模型回复：订单已支付，下周一开课。',
@@ -227,7 +229,8 @@ describe('App', () => {
         expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
         expect(JSON.parse(String(init?.body))).toEqual({
           tenantId: 'tenant-demo',
-          message: '帮我查订单 order-1001'
+          message: '帮我查订单 order-1001',
+          conversationId: 'debug-session'
         });
         return jsonResponse(chatResponse);
       }
@@ -249,6 +252,10 @@ describe('App', () => {
     expect(screen.getByText('Risk Level')).toBeTruthy();
     expect(screen.getAllByText('READ_ONLY')).toHaveLength(2);
     expect(screen.getByText('Trace ID')).toBeTruthy();
+    expect(screen.getByText('Conversation ID')).toBeTruthy();
+    expect(screen.getByText('debug-session')).toBeTruthy();
+    expect(screen.getByText('Memory')).toBeTruthy();
+    expect(screen.getByText(/最近订单 order-1001/)).toBeTruthy();
     expect(screen.getByText('Tool Calls')).toBeTruthy();
     expect(screen.getByText('order_lookup')).toBeTruthy();
     expect(screen.getByText('orderId=order-1001')).toBeTruthy();

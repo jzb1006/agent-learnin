@@ -3,6 +3,8 @@ package com.example.customer.agent.chat;
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.intent.IntentRouteResult;
 import com.example.customer.agent.intent.IntentRouter;
+import com.example.customer.agent.memory.ChatMemory;
+import com.example.customer.agent.memory.ChatMemorySnapshot;
 import com.example.customer.agent.mcp.McpToolCallRequest;
 import com.example.customer.agent.mcp.McpToolClient;
 import com.example.customer.agent.mcp.McpToolNames;
@@ -38,6 +40,7 @@ public class ChatService {
     private final IntentRouter intentRouter;
     private final CustomerAgentResponseParser responseParser;
     private final McpToolClient mcpToolClient;
+    private final ChatMemory chatMemory;
 
     /**
      * 生成基础结构化客服回复。
@@ -48,8 +51,9 @@ public class ChatService {
     public CustomerAgentResponse reply(ChatRequest request) {
         var message = request.message() == null ? "" : request.message();
         var tenantId = TenantContext.currentTenantId().orElse(request.tenantId());
+        var memorySnapshot = chatMemory.snapshot(tenantId, request.conversationId());
         var routeResult = intentRouter.route(message);
-        var orderId = orderIdFor(routeResult);
+        var orderId = orderIdFor(routeResult, memorySnapshot);
         var riskLevel = riskLevelFor(routeResult.route());
         var traceId = RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID());
         var toolExecution = executeTool(routeResult.route(), message, orderId, tenantId);
@@ -64,12 +68,20 @@ public class ChatService {
         var response = properties.getChatModel().isEnabled()
                         && routeResult.route() == ConversationRoute.ORDER_LOOKUP
                         && orderResponse != null
-                ? modelResponse(tenantId, message, toolExecution, routeResult.route(), riskLevel, traceId)
+                ? modelResponse(tenantId, message, memorySnapshot, toolExecution, routeResult.route(), riskLevel, traceId)
                 : deterministicResponse(routeResult, toolExecution, riskLevel, traceId);
 
-        log.info(
-                "chat_reply_success tenantId={} orderId={} route={} riskLevel={} traceId={}",
+        var updatedMemory = chatMemory.remember(
                 tenantId,
+                memorySnapshot.conversationId(),
+                message,
+                routeResult.route(),
+                effectiveOrderId(orderId, toolExecution));
+        response = withMemory(response, updatedMemory);
+        log.info(
+                "chat_reply_success tenantId={} conversationId={} orderId={} route={} riskLevel={} traceId={}",
+                tenantId,
+                updatedMemory.conversationId(),
                 orderId,
                 routeResult.route().name(),
                 riskLevel.name(),
@@ -153,12 +165,18 @@ public class ChatService {
                         entry -> entry.getValue().toString()));
     }
 
-    private String orderIdFor(IntentRouteResult routeResult) {
+    private String orderIdFor(IntentRouteResult routeResult, ChatMemorySnapshot memorySnapshot) {
         if (routeResult.route() == ConversationRoute.ORDER_LOOKUP) {
-            return routeResult.orderId() == null ? properties.getDefaultOrderId() : routeResult.orderId();
+            if (routeResult.orderId() != null) {
+                return routeResult.orderId();
+            }
+            if (memorySnapshot.lastOrderId() != null) {
+                return memorySnapshot.lastOrderId();
+            }
+            return properties.getDefaultOrderId();
         }
         if (routeResult.route() == ConversationRoute.REFUND_OR_CANCEL) {
-            return routeResult.orderId();
+            return routeResult.orderId() == null ? memorySnapshot.lastOrderId() : routeResult.orderId();
         }
         return null;
     }
@@ -283,6 +301,7 @@ public class ChatService {
     private CustomerAgentResponse modelResponse(
             String tenantId,
             String message,
+            ChatMemorySnapshot memorySnapshot,
             ToolExecution toolExecution,
             ConversationRoute expectedRoute,
             ToolRiskLevel expectedRiskLevel,
@@ -293,7 +312,8 @@ public class ChatService {
             var rawResponse = chatModelClient.generateReply(new CustomerChatPrompt(
                     tenantId,
                     message,
-                    modelEvidence(order, expectedRoute, expectedRiskLevel, traceId)));
+                    modelEvidence(order, expectedRoute, expectedRiskLevel, traceId),
+                    memorySnapshot.summary()));
             var parsed = responseParser.parse(rawResponse);
             requireModelMetadataMatchesJavaDecision(parsed, expectedRoute, expectedRiskLevel);
             return new CustomerAgentResponse(
@@ -341,6 +361,30 @@ public class ChatService {
                 order.id(),
                 order.productName(),
                 order.status()).strip();
+    }
+
+    private String effectiveOrderId(String requestedOrderId, ToolExecution toolExecution) {
+        if (toolExecution.order() != null) {
+            return toolExecution.order().id();
+        }
+        var toolResult = toolExecution.toolResult();
+        if (toolResult != null && toolResult.succeeded() && toolResult.payload().containsKey("orderId")) {
+            return toolPayloadText(toolResult, "orderId");
+        }
+        return requestedOrderId;
+    }
+
+    private CustomerAgentResponse withMemory(CustomerAgentResponse response, ChatMemorySnapshot memorySnapshot) {
+        return new CustomerAgentResponse(
+                response.route(),
+                response.answer(),
+                response.sources(),
+                response.riskLevel(),
+                response.nextActions(),
+                response.traceId(),
+                response.toolCalls(),
+                memorySnapshot.conversationId(),
+                memorySnapshot.summary());
     }
 
     private void requireModelMetadataMatchesJavaDecision(

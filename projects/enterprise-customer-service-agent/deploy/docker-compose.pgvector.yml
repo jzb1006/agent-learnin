@@ -17,5 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:8
+    container_name: customer-agent-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - customer-agent-redis-8-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   customer-agent-postgres-18-data:
+  customer-agent-redis-8-data:

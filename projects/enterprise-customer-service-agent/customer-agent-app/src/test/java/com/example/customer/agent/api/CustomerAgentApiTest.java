@@ -34,6 +34,7 @@ import tools.jackson.databind.ObjectMapper;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "customer-agent.chat-model.enabled=false",
+                "customer-agent.conversation-memory.storage=in-memory",
                 "customer-agent.knowledge-base.embedding-mode=local",
                 "customer-agent.knowledge-base.vector-store-type=simple",
                 "spring.ai.model.chat=none",
@@ -79,6 +80,7 @@ class CustomerAgentApiTest {
         assertThat(applicationYml).contains("optional:file:projects/enterprise-customer-service-agent/.env[.properties]");
         assertThat(applicationYml).contains("CUSTOMER_AGENT_MCP_CLIENT_MODE");
         assertThat(applicationYml).contains("CUSTOMER_AGENT_MCP_CLIENT_SERVER_JAR");
+        assertThat(applicationYml).contains("SPRING_DATA_REDIS_PORT:16379");
     }
 
     @Test
@@ -240,6 +242,38 @@ class CustomerAgentApiTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(body.path("route").asText()).isEqualTo("ORDER_LOOKUP");
         assertThat(body.path("toolCalls").get(0).path("arguments").path("tenantId").asText()).isEqualTo("tenant-demo");
+    }
+
+    @Test
+    void shouldReturnConversationMemoryFromChatApi() throws Exception {
+        var firstRequestBody = """
+                {
+                  "tenantId": "tenant-demo",
+                  "conversationId": "api-memory-conversation",
+                  "message": "帮我查询订单 order-1001 什么时候开课"
+                }
+                """;
+        var secondRequestBody = """
+                {
+                  "tenantId": "tenant-demo",
+                  "conversationId": "api-memory-conversation",
+                  "message": "刚才那个订单可以退款吗？"
+                }
+                """;
+
+        var firstResponse = post("/chat", firstRequestBody, "trace-chat-memory-first", "tenant-demo");
+        var secondResponse = post("/chat", secondRequestBody, "trace-chat-memory-second", "tenant-demo");
+        var firstBody = json(firstResponse.body());
+        var secondBody = json(secondResponse.body());
+
+        assertThat(firstResponse.statusCode()).isEqualTo(200);
+        assertThat(firstBody.path("conversationId").asText()).isEqualTo("api-memory-conversation");
+        assertThat(firstBody.path("memorySummary").asText()).contains("order-1001");
+        assertThat(secondResponse.statusCode()).isEqualTo(200);
+        assertThat(secondBody.path("route").asText()).isEqualTo("REFUND_OR_CANCEL");
+        assertThat(secondBody.path("conversationId").asText()).isEqualTo("api-memory-conversation");
+        assertThat(secondBody.path("memorySummary").asText()).contains("order-1001");
+        assertThat(secondBody.path("toolCalls").get(0).path("arguments").path("orderId").asText()).isEqualTo("order-1001");
     }
 
     @ParameterizedTest
