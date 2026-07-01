@@ -41,6 +41,11 @@ public class CustomerAgentProperties {
     private KnowledgeBase knowledgeBase = new KnowledgeBase();
 
     /**
+     * MCP Client 配置。
+     */
+    private McpClient mcpClient = new McpClient();
+
+    /**
      * 控制客服对话是否调用真实 ChatModel。
      *
      * @author jiangzhibin
@@ -53,6 +58,51 @@ public class CustomerAgentProperties {
          * 是否启用真实模型调用。
          */
         private boolean enabled;
+    }
+
+    /**
+     * 控制 Agent App 调用 MCP 工具的方式。
+     *
+     * @author jiangzhibin
+     * @since 2026-07-01 09:56:00
+     */
+    @Data
+    public static class McpClient {
+
+        /**
+         * MCP client 模式。
+         */
+        private Mode mode = Mode.STDIO;
+
+        /**
+         * stdio server 启动命令。
+         */
+        @NotBlank
+        private String command = "java";
+
+        /**
+         * stdio server JAR 路径。
+         */
+        @NotBlank
+        private String serverJar = "../customer-mcp-server/target/customer-mcp-server-0.1.0-SNAPSHOT.jar";
+
+        /**
+         * MCP 请求超时时间，单位秒。
+         */
+        private long requestTimeoutSeconds = 10;
+
+        /**
+         * MCP client 模式。
+         *
+         * @author jiangzhibin
+         * @since 2026-07-01 09:56:00
+         */
+        public enum Mode {
+            /**
+             * 通过 stdio 启动并调用真实 customer-mcp-server。
+             */
+            STDIO
+        }
     }
 
     /**

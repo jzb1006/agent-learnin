@@ -3,19 +3,18 @@ package com.example.customer.agent.chat;
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.intent.IntentRouteResult;
 import com.example.customer.agent.intent.IntentRouter;
+import com.example.customer.agent.mcp.McpToolCallRequest;
+import com.example.customer.agent.mcp.McpToolClient;
+import com.example.customer.agent.mcp.McpToolNames;
 import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderResponse;
 import com.example.customer.agent.tenant.TenantContext;
-import com.example.customer.agent.tool.OrderLookupTool;
-import com.example.customer.agent.tool.RefundPolicyCheckTool;
-import com.example.customer.agent.tool.RetrieveKnowledgeTool;
 import com.example.customer.domain.tool.ToolResult;
 import com.example.customer.domain.tool.ToolRiskLevel;
 import com.example.customer.domain.trace.ConversationRoute;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +37,7 @@ public class ChatService {
     private final CustomerChatModelClient chatModelClient;
     private final IntentRouter intentRouter;
     private final CustomerAgentResponseParser responseParser;
-    private final OrderLookupTool orderLookupTool;
-    private final RefundPolicyCheckTool refundPolicyCheckTool;
-    private final RetrieveKnowledgeTool retrieveKnowledgeTool;
+    private final McpToolClient mcpToolClient;
 
     /**
      * 生成基础结构化客服回复。
@@ -96,46 +93,42 @@ public class ChatService {
     private ToolExecution executeKnowledgeRetrieval(String query) {
         var knowledgeBase = properties.getKnowledgeBase();
         var tenantId = TenantContext.currentTenantId().orElse(knowledgeBase.getDefaultTenantId());
-        var startedAtNanos = System.nanoTime();
-        var toolResult = retrieveKnowledgeTool.search(query, tenantId, knowledgeBase.getTopK());
-        var durationMs = elapsedMillis(startedAtNanos);
+        var arguments = Map.<String, Object>of("query", query, "tenantId", tenantId, "topK", knowledgeBase.getTopK());
+        var response = mcpToolClient.call(new McpToolCallRequest(McpToolNames.KB_SEARCH, arguments));
+        var toolResult = response.result();
         var toolCall = toolCall(
-                RetrieveKnowledgeTool.NAME,
-                Map.of("query", query, "tenantId", tenantId),
+                McpToolNames.KB_SEARCH,
+                stringArguments(arguments),
                 ToolRiskLevel.READ_ONLY,
-                durationMs,
+                response.durationMs(),
                 toolResult);
         return new ToolExecution(null, toolResult, List.of(toolCall));
     }
 
     private ToolExecution executeOrderLookup(String orderId, String tenantId) {
-        var startedAtNanos = System.nanoTime();
-        var toolResult = orderLookupTool.lookup(orderId, tenantId);
-        var durationMs = elapsedMillis(startedAtNanos);
+        var arguments = Map.<String, Object>of("orderId", orderId, "tenantId", tenantId);
+        var response = mcpToolClient.call(new McpToolCallRequest(McpToolNames.ORDER_LOOKUP, arguments));
+        var toolResult = response.result();
         var toolCall = toolCall(
-                OrderLookupTool.NAME,
-                Map.of("orderId", orderId, "tenantId", tenantId),
+                McpToolNames.ORDER_LOOKUP,
+                stringArguments(arguments),
                 ToolRiskLevel.READ_ONLY,
-                durationMs,
+                response.durationMs(),
                 toolResult);
         return new ToolExecution(orderFrom(toolResult), toolResult, List.of(toolCall));
     }
 
     private ToolExecution executeRefundPolicyCheck(String orderId, String tenantId) {
-        var startedAtNanos = System.nanoTime();
-        var toolResult = refundPolicyCheckTool.check(orderId, tenantId);
-        var durationMs = elapsedMillis(startedAtNanos);
+        var arguments = Map.<String, Object>of("orderId", orderId, "tenantId", tenantId);
+        var response = mcpToolClient.call(new McpToolCallRequest(McpToolNames.REFUND_POLICY_CHECK, arguments));
+        var toolResult = response.result();
         var toolCall = toolCall(
-                RefundPolicyCheckTool.NAME,
-                Map.of("orderId", orderId, "tenantId", tenantId),
+                McpToolNames.REFUND_POLICY_CHECK,
+                stringArguments(arguments),
                 ToolRiskLevel.READ_ONLY,
-                durationMs,
+                response.durationMs(),
                 toolResult);
         return new ToolExecution(orderFrom(toolResult), toolResult, List.of(toolCall));
-    }
-
-    private long elapsedMillis(long startedAtNanos) {
-        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
     }
 
     private CustomerAgentToolCall toolCall(
@@ -151,6 +144,13 @@ public class ChatService {
                 riskLevel.name(),
                 durationMs,
                 resultSummary(toolResult));
+    }
+
+    private Map<String, String> stringArguments(Map<String, Object> arguments) {
+        return arguments.entrySet().stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().toString()));
     }
 
     private String orderIdFor(IntentRouteResult routeResult) {
@@ -242,7 +242,7 @@ public class ChatService {
         if (toolResult != null && toolResult.succeeded() && toolResult.payload().containsKey("orderId")) {
             return List.of("order:" + toolPayloadText(toolResult, "orderId"));
         }
-        if (toolResult != null && RetrieveKnowledgeTool.NAME.equals(toolResult.toolName()) && toolResult.succeeded()) {
+        if (toolResult != null && McpToolNames.KB_SEARCH.equals(toolResult.toolName()) && toolResult.succeeded()) {
             return toolMatches(toolResult).stream()
                     .map(match -> payloadText(match, "source"))
                     .filter(source -> !source.isBlank())
@@ -388,13 +388,13 @@ public class ChatService {
                     + toolResult.errorMessage().orElse("工具调用失败");
         }
         var payload = toolResult.payload();
-        if (RefundPolicyCheckTool.NAME.equals(toolResult.toolName())) {
+        if (McpToolNames.REFUND_POLICY_CHECK.equals(toolResult.toolName())) {
             return "%s -> %s".formatted(payload.get("policyDecision"), payload.get("recommendedAction"));
         }
-        if (OrderLookupTool.NAME.equals(toolResult.toolName())) {
+        if (McpToolNames.ORDER_LOOKUP.equals(toolResult.toolName())) {
             return "%s %s %s".formatted(payload.get("orderId"), payload.get("productName"), payload.get("status"));
         }
-        if (RetrieveKnowledgeTool.NAME.equals(toolResult.toolName())) {
+        if (McpToolNames.KB_SEARCH.equals(toolResult.toolName())) {
             return toolMatches(toolResult).stream()
                     .findFirst()
                     .map(match -> "%s %s".formatted(payloadText(match, "title"), payloadText(match, "source")))

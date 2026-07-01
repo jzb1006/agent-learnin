@@ -5,22 +5,31 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.intent.IntentRouter;
-import com.example.customer.agent.order.MockOrderRepository;
-import com.example.customer.agent.rag.KnowledgeDocumentLoader;
-import com.example.customer.agent.rag.KnowledgeDocumentSplitter;
-import com.example.customer.agent.rag.KnowledgeRetrievalService;
-import com.example.customer.agent.rag.LocalKnowledgeEmbeddingModel;
-import com.example.customer.agent.tool.OrderLookupTool;
-import com.example.customer.agent.tool.RefundPolicyCheckTool;
-import com.example.customer.agent.tool.RetrieveKnowledgeTool;
+import com.example.customer.agent.mcp.FakeMcpToolClient;
+import com.example.customer.agent.mcp.McpToolCallRequest;
+import com.example.customer.agent.mcp.McpToolCallResponse;
+import com.example.customer.agent.mcp.McpToolClient;
+import com.example.customer.domain.tool.ToolDefinition;
 import com.example.customer.domain.trace.ConversationRoute;
+import com.example.customer.domain.tool.ToolResult;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.vectorstore.SimpleVectorStore;
 
 class ChatServiceModelClientTest {
+
+    @Test
+    void shouldDependOnMcpToolClientInsteadOfConcreteToolImplementations() {
+        var constructorParameterTypes = Arrays.stream(ChatService.class.getDeclaredConstructors())
+                .flatMap(constructor -> Arrays.stream(constructor.getParameterTypes()))
+                .toList();
+
+        assertThat(constructorParameterTypes)
+                .contains(McpToolClient.class)
+                .extracting(Class::getPackageName)
+                .doesNotContain("com.example.customer.agent.tool");
+    }
 
     @Test
     void shouldUseConfiguredChatModelClientWhenEnabled() {
@@ -103,6 +112,25 @@ class ChatServiceModelClientTest {
     }
 
     @Test
+    void shouldReturnStructuredResponseWhenMcpToolCallFails() {
+        var properties = properties(false);
+        var service = chatService(properties, new RecordingChatModelClient(List.of()), new FailingMcpToolClient());
+
+        var response = service.reply(new ChatRequest("tenant-demo", "帮我查询订单 order-1001 什么时候开课"));
+
+        assertThat(response.route()).isEqualTo(ConversationRoute.ORDER_LOOKUP.name());
+        assertThat(response.riskLevel()).isEqualTo("READ_ONLY");
+        assertThat(response.answer()).contains("未查询到可用于回复的订单证据").contains("MCP_CLIENT_CALL_FAILED");
+        assertThat(response.sources()).isEmpty();
+        assertThat(response.toolCalls()).singleElement()
+                .satisfies(toolCall -> {
+                    assertThat(toolCall.name()).isEqualTo("order_lookup");
+                    assertThat(toolCall.status()).isEqualTo("FAILED");
+                    assertThat(toolCall.resultSummary()).contains("MCP_CLIENT_CALL_FAILED");
+                });
+    }
+
+    @Test
     void shouldWrapModelFailureAsBusinessException() {
         var properties = properties(true);
         var service = chatService(properties, new FailingChatModelClient());
@@ -169,7 +197,7 @@ class ChatServiceModelClientTest {
         assertThat(response.nextActions()).contains("展示知识库来源");
         assertThat(response.toolCalls()).singleElement()
                 .satisfies(toolCall -> {
-                    assertThat(toolCall.name()).isEqualTo("retrieve_knowledge");
+                    assertThat(toolCall.name()).isEqualTo("kb_search");
                     assertThat(toolCall.arguments()).containsEntry("tenantId", "default");
                     assertThat(toolCall.arguments()).containsEntry("query", "新手适合学企业级 AI Agent 课程吗？");
                     assertThat(toolCall.status()).isEqualTo("SUCCEEDED");
@@ -197,25 +225,19 @@ class ChatServiceModelClientTest {
     }
 
     private static ChatService chatService(CustomerAgentProperties properties, CustomerChatModelClient chatModelClient) {
-        var orderRepository = new MockOrderRepository();
+        return chatService(properties, chatModelClient, new FakeMcpToolClient());
+    }
+
+    private static ChatService chatService(
+            CustomerAgentProperties properties,
+            CustomerChatModelClient chatModelClient,
+            McpToolClient mcpToolClient) {
         return new ChatService(
                 properties,
                 chatModelClient,
                 new IntentRouter(),
                 new CustomerAgentResponseParser(new tools.jackson.databind.ObjectMapper()),
-                new OrderLookupTool(orderRepository),
-                new RefundPolicyCheckTool(orderRepository),
-                retrieveKnowledgeTool());
-    }
-
-    private static RetrieveKnowledgeTool retrieveKnowledgeTool() {
-        var service = new KnowledgeRetrievalService(
-                SimpleVectorStore.builder(new LocalKnowledgeEmbeddingModel()).build(),
-                new KnowledgeDocumentLoader(Path.of("../knowledge-base")),
-                new KnowledgeDocumentSplitter());
-        var tool = new RetrieveKnowledgeTool(service);
-        tool.reindex();
-        return tool;
+                mcpToolClient);
     }
 
     private static final class RecordingChatModelClient implements CustomerChatModelClient {
@@ -243,6 +265,22 @@ class ChatServiceModelClientTest {
         @Override
         public String generateReply(CustomerChatPrompt prompt) {
             throw new ChatModelException("模型调用失败", new RuntimeException("timeout"));
+        }
+    }
+
+    private static final class FailingMcpToolClient implements McpToolClient {
+
+        @Override
+        public List<ToolDefinition> listTools() {
+            return List.of();
+        }
+
+        @Override
+        public McpToolCallResponse call(McpToolCallRequest request) {
+            return new McpToolCallResponse(
+                    request.toolName(),
+                    ToolResult.failed(request.toolName(), "MCP_CLIENT_CALL_FAILED", "MCP 工具调用失败: timeout"),
+                    1000);
         }
     }
 }

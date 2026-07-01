@@ -61,6 +61,11 @@ customer-agent:
   trace-id-prefix: trace
   chat-model:
     enabled: ${CUSTOMER_AGENT_CHAT_MODEL_ENABLED:false}
+  mcp-client:
+    mode: ${CUSTOMER_AGENT_MCP_CLIENT_MODE:stdio}
+    command: ${CUSTOMER_AGENT_MCP_CLIENT_COMMAND:java}
+    server-jar: ${CUSTOMER_AGENT_MCP_CLIENT_SERVER_JAR:../customer-mcp-server/target/customer-mcp-server-0.1.0-SNAPSHOT.jar}
+    request-timeout-seconds: ${CUSTOMER_AGENT_MCP_CLIENT_REQUEST_TIMEOUT_SECONDS:10}
   knowledge-base:
     embedding-mode: ${CUSTOMER_AGENT_KNOWLEDGE_EMBEDDING_MODE:local}
     vector-store-type: ${CUSTOMER_AGENT_KNOWLEDGE_VECTOR_STORE_TYPE:simple}

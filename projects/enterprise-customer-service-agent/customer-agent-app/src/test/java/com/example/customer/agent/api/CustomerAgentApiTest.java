@@ -3,6 +3,8 @@ package com.example.customer.agent.api;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.customer.agent.config.CustomerAgentProperties;
+import com.example.customer.agent.mcp.FakeMcpToolClient;
+import com.example.customer.agent.mcp.McpToolClient;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
@@ -20,6 +22,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.JsonNode;
@@ -58,6 +63,8 @@ class CustomerAgentApiTest {
         assertThat(properties.getDefaultOrderId()).isEqualTo("order-1001");
         assertThat(properties.getTraceIdPrefix()).isEqualTo("trace");
         assertThat(properties.getChatModel().isEnabled()).isFalse();
+        assertThat(properties.getMcpClient().getMode()).isEqualTo(CustomerAgentProperties.McpClient.Mode.STDIO);
+        assertThat(properties.getMcpClient().getServerJar()).contains("customer-mcp-server");
         assertThat(environment.getProperty("spring.ai.model.chat")).isEqualTo("none");
         assertThat(environment.getProperty("spring.ai.openai.chat.base-url")).isEqualTo("https://api.deepseek.com");
         assertThat(environment.getProperty("spring.ai.openai.chat.model")).isEqualTo("deepseek-v4-flash");
@@ -70,6 +77,8 @@ class CustomerAgentApiTest {
         assertThat(applicationYml).contains("optional:file:.env[.properties]");
         assertThat(applicationYml).contains("optional:file:../.env[.properties]");
         assertThat(applicationYml).contains("optional:file:projects/enterprise-customer-service-agent/.env[.properties]");
+        assertThat(applicationYml).contains("CUSTOMER_AGENT_MCP_CLIENT_MODE");
+        assertThat(applicationYml).contains("CUSTOMER_AGENT_MCP_CLIENT_SERVER_JAR");
     }
 
     @Test
@@ -264,7 +273,7 @@ class CustomerAgentApiTest {
         assertThat(body.path("nextActions").get(0).asText()).isEqualTo(expectedNextAction);
         if ("KNOWLEDGE_QA".equals(expectedRoute)) {
             assertThat(body.path("sources").get(0).asText()).contains("week10/work_v3/datas/data.txt");
-            assertThat(body.path("toolCalls").get(0).path("name").asText()).isEqualTo("retrieve_knowledge");
+            assertThat(body.path("toolCalls").get(0).path("name").asText()).isEqualTo("kb_search");
             assertThat(body.path("toolCalls").get(0).path("status").asText()).isEqualTo("SUCCEEDED");
         }
     }
@@ -317,18 +326,15 @@ class CustomerAgentApiTest {
         assertThat(addBody.path("indexedChunks").asInt()).isPositive();
         assertThat(addBody.path("skipped").asBoolean()).isFalse();
 
-        var chatBody = """
-                {
-                  "message": "知识库管理 API 新增知识需要重启吗？"
-                }
-                """;
-        var chatResponse = post("/chat", chatBody, "trace-knowledge-chat", "tenant-kb-api");
-        var chatJson = json(chatResponse.body());
+        var searchResponse = get(
+                "/admin/api/v1/knowledge/search?query=%E6%97%A0%E9%9C%80%E9%87%8D%E5%90%AF&topK=3",
+                "trace-knowledge-search-after-upsert",
+                "tenant-kb-api");
+        var searchJson = json(searchResponse.body());
 
-        assertThat(chatResponse.statusCode()).isEqualTo(200);
-        assertThat(chatJson.path("route").asText()).isEqualTo("KNOWLEDGE_QA");
-        assertThat(chatJson.path("answer").asText()).contains("无需重启服务");
-        assertThat(chatJson.path("sources").get(0).asText()).isEqualTo("day20#api");
+        assertThat(searchResponse.statusCode()).isEqualTo(200);
+        assertThat(searchJson.path("matches").get(0).path("content").asText()).contains("无需重启服务");
+        assertThat(searchJson.path("matches").get(0).path("source").asText()).isEqualTo("day20#api");
 
         var deleteResponse = delete("/admin/api/v1/knowledge/items?itemId=faq-day20-api", "trace-knowledge-delete", "tenant-kb-api");
         var deleteBody = json(deleteResponse.body());
@@ -338,11 +344,14 @@ class CustomerAgentApiTest {
         assertThat(deleteBody.path("tenantId").asText()).isEqualTo("tenant-kb-api");
         assertThat(deleteBody.path("deleted").asBoolean()).isTrue();
 
-        var deletedChatResponse = post("/chat", chatBody, "trace-knowledge-chat-deleted", "tenant-kb-api");
-        var deletedChatJson = json(deletedChatResponse.body());
+        var deletedSearchResponse = get(
+                "/admin/api/v1/knowledge/search?query=%E6%97%A0%E9%9C%80%E9%87%8D%E5%90%AF&topK=3",
+                "trace-knowledge-search-after-delete",
+                "tenant-kb-api");
+        var deletedSearchJson = json(deletedSearchResponse.body());
 
-        assertThat(deletedChatResponse.statusCode()).isEqualTo(200);
-        assertThat(deletedChatJson.path("answer").asText()).contains("未检索到可引用答案");
+        assertThat(deletedSearchResponse.statusCode()).isEqualTo(200);
+        assertThat(deletedSearchJson.path("matches").size()).isZero();
     }
 
     @Test
@@ -537,5 +546,15 @@ class CustomerAgentApiTest {
                 Arguments.of("帮我查询订单 order-1001 什么时候开课", "trace-stage2-order", "ORDER_LOOKUP", "READ_ONLY", "展示订单状态"),
                 Arguments.of("我要转人工客服", "trace-stage2-handoff", "HUMAN_HANDOFF", "LOW_RISK_WRITE", "记录人工转接意向"),
                 Arguments.of("订单 order-1001 可以退款吗？", "trace-stage2-refund", "REFUND_OR_CANCEL", "HIGH_RISK", "创建人工审批请求"));
+    }
+
+    @TestConfiguration
+    static class FakeMcpToolClientConfiguration {
+
+        @Bean
+        @Primary
+        McpToolClient fakeMcpToolClient() {
+            return new FakeMcpToolClient();
+        }
     }
 }

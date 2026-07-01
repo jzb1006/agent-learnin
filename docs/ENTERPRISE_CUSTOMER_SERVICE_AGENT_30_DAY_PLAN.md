@@ -138,6 +138,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 20 | 已完成 | 2026-06-30 | [知识库管理 API](day-20-knowledge-management-api.md) |
 | Day 21 | 已完成 | 2026-06-30 | [设计 MCP 边界](day-21-mcp-boundary-design.md) |
 | Day 22 | 已完成 | 2026-06-30 | [实现 MCP Server](day-22-mcp-server.md) |
+| Day 23 | 已完成 | 2026-07-01 | [实现 MCP Client](day-23-mcp-client.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
@@ -627,11 +628,13 @@ MCP Tools：
 
 - MCP client 配置
 - tool list 缓存
-- tool call adapter
+- local tool call adapter
+- stdio MCP service client
 
 验收：
 
 - Agent App 不直接依赖工具实现类。
+- 测试能通过 stdio 启动 `customer-mcp-server` 并调用 `order_lookup`。
 
 ### Day 24：Memory 与上下文压缩
 
