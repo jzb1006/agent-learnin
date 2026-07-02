@@ -9,6 +9,9 @@ import com.example.customer.agent.mcp.FakeMcpToolClient;
 import com.example.customer.agent.mcp.McpToolCallRequest;
 import com.example.customer.agent.mcp.McpToolCallResponse;
 import com.example.customer.agent.mcp.McpToolClient;
+import com.example.customer.agent.security.PromptInjectionGuard;
+import com.example.customer.agent.security.RedactionService;
+import com.example.customer.agent.security.ToolPermissionGuard;
 import com.example.customer.domain.tool.ToolDefinition;
 import com.example.customer.domain.trace.ConversationRoute;
 import com.example.customer.domain.tool.ToolResult;
@@ -322,7 +325,10 @@ class ChatServiceModelClientTest {
                 mcpToolClient,
                 new com.example.customer.agent.memory.InMemoryChatMemory(
                         properties,
-                        new com.example.customer.agent.memory.ConversationSummaryCompressor(properties)));
+                        new com.example.customer.agent.memory.ConversationSummaryCompressor(properties)),
+                new PromptInjectionGuard(),
+                new RedactionService(),
+                new ToolPermissionGuard());
     }
 
     private static final class RecordingChatModelClient implements CustomerChatModelClient {

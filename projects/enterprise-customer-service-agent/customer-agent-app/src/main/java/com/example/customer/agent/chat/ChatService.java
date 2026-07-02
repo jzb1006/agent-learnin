@@ -10,7 +10,11 @@ import com.example.customer.agent.mcp.McpToolClient;
 import com.example.customer.agent.mcp.McpToolNames;
 import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderResponse;
+import com.example.customer.agent.security.PromptInjectionGuard;
+import com.example.customer.agent.security.RedactionService;
+import com.example.customer.agent.security.ToolPermissionGuard;
 import com.example.customer.agent.tenant.TenantContext;
+import com.example.customer.domain.approval.ApprovalAction;
 import com.example.customer.domain.tool.ToolResult;
 import com.example.customer.domain.tool.ToolRiskLevel;
 import com.example.customer.domain.trace.ConversationRoute;
@@ -41,6 +45,9 @@ public class ChatService {
     private final CustomerAgentResponseParser responseParser;
     private final McpToolClient mcpToolClient;
     private final ChatMemory chatMemory;
+    private final PromptInjectionGuard promptInjectionGuard;
+    private final RedactionService redactionService;
+    private final ToolPermissionGuard toolPermissionGuard;
 
     /**
      * 生成基础结构化客服回复。
@@ -49,7 +56,7 @@ public class ChatService {
      * @return 客服 Agent 结构化响应
      */
     public CustomerAgentResponse reply(ChatRequest request) {
-        var message = request.message() == null ? "" : request.message();
+        var message = promptInjectionGuard.requireSafeMessage(request.message() == null ? "" : request.message());
         var tenantId = TenantContext.currentTenantId().orElse(request.tenantId());
         var memorySnapshot = chatMemory.snapshot(tenantId, request.conversationId());
         var routeResult = intentRouter.route(message);
@@ -63,7 +70,7 @@ public class ChatService {
                 tenantId,
                 routeResult.route().name(),
                 orderId,
-                message.length(),
+                redactionService.redact(message).length(),
                 properties.getChatModel().isEnabled());
         var response = properties.getChatModel().isEnabled()
                         && routeResult.route() == ConversationRoute.ORDER_LOOKUP
@@ -103,6 +110,7 @@ public class ChatService {
     }
 
     private ToolExecution executeKnowledgeRetrieval(String query) {
+        toolPermissionGuard.requireAllowed(McpToolNames.KB_SEARCH, ToolRiskLevel.READ_ONLY, ApprovalAction.ORDER_LOOKUP);
         var knowledgeBase = properties.getKnowledgeBase();
         var tenantId = TenantContext.currentTenantId().orElse(knowledgeBase.getDefaultTenantId());
         var arguments = Map.<String, Object>of("query", query, "tenantId", tenantId, "topK", knowledgeBase.getTopK());
@@ -118,6 +126,7 @@ public class ChatService {
     }
 
     private ToolExecution executeOrderLookup(String orderId, String tenantId) {
+        toolPermissionGuard.requireAllowed(McpToolNames.ORDER_LOOKUP, ToolRiskLevel.READ_ONLY, ApprovalAction.ORDER_LOOKUP);
         var arguments = Map.<String, Object>of("orderId", orderId, "tenantId", tenantId);
         var response = mcpToolClient.call(new McpToolCallRequest(McpToolNames.ORDER_LOOKUP, arguments));
         var toolResult = response.result();
@@ -131,6 +140,10 @@ public class ChatService {
     }
 
     private ToolExecution executeRefundPolicyCheck(String orderId, String tenantId) {
+        toolPermissionGuard.requireAllowed(
+                McpToolNames.REFUND_POLICY_CHECK,
+                ToolRiskLevel.READ_ONLY,
+                ApprovalAction.REFUND_ORDER);
         var arguments = Map.<String, Object>of("orderId", orderId, "tenantId", tenantId);
         var response = mcpToolClient.call(new McpToolCallRequest(McpToolNames.REFUND_POLICY_CHECK, arguments));
         var toolResult = response.result();

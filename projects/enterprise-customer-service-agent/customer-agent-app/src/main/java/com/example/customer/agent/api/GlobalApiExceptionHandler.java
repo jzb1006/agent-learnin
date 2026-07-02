@@ -4,6 +4,9 @@ import com.example.customer.agent.chat.ChatModelException;
 import com.example.customer.agent.config.CustomerAgentProperties;
 import com.example.customer.agent.observability.RequestTraceContext;
 import com.example.customer.agent.order.OrderNotFoundException;
+import com.example.customer.agent.security.PromptInjectionDetectedException;
+import com.example.customer.agent.security.RedactionService;
+import com.example.customer.agent.security.ToolPermissionDeniedException;
 import com.example.customer.agent.tenant.TenantResolutionException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalApiExceptionHandler {
 
     private final CustomerAgentProperties properties;
+    private final RedactionService redactionService;
 
     /**
      * 转换订单不存在异常。
@@ -87,6 +91,47 @@ public class GlobalApiExceptionHandler {
     }
 
     /**
+     * 转换 Prompt Injection 检测异常。
+     *
+     * @param exception Prompt Injection 检测异常
+     * @param request HTTP 请求
+     * @return 400 错误响应
+     */
+    @ExceptionHandler(PromptInjectionDetectedException.class)
+    public ResponseEntity<ApiErrorResponse> handlePromptInjectionDetected(
+            PromptInjectionDetectedException exception,
+            HttpServletRequest request) {
+        var status = HttpStatus.BAD_REQUEST;
+        var message = exception.getMessage();
+        log.warn(
+                "api_error errorCode=PROMPT_INJECTION_DETECTED path={} message={}",
+                request.getRequestURI(),
+                redactionService.redact(message));
+        var body = error(status, "PROMPT_INJECTION_DETECTED", message, request);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    /**
+     * 转换工具权限拒绝异常。
+     *
+     * @param exception 工具权限拒绝异常
+     * @param request HTTP 请求
+     * @return 403 错误响应
+     */
+    @ExceptionHandler(ToolPermissionDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleToolPermissionDenied(
+            ToolPermissionDeniedException exception,
+            HttpServletRequest request) {
+        var status = HttpStatus.FORBIDDEN;
+        log.warn(
+                "api_error errorCode=TOOL_PERMISSION_DENIED path={} message={}",
+                request.getRequestURI(),
+                redactionService.redact(exception.getMessage()));
+        var body = error(status, "TOOL_PERMISSION_DENIED", exception.getMessage(), request);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    /**
      * 转换租户解析异常。
      *
      * @param exception 租户解析异常
@@ -112,7 +157,7 @@ public class GlobalApiExceptionHandler {
                 Instant.now(),
                 status.value(),
                 errorCode,
-                message,
+                redactionService.redact(message),
                 request.getRequestURI(),
                 RequestTraceContext.currentTraceIdOr(properties.getTraceIdPrefix() + "-" + UUID.randomUUID()));
     }

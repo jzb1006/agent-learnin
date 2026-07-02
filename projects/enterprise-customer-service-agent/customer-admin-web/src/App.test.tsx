@@ -97,6 +97,19 @@ const knowledgeSearchResponse = {
   ]
 };
 
+const approvalResponse = {
+  id: 'approval-trace-live',
+  tenantId: 'tenant-demo',
+  orderId: 'order-1001',
+  action: 'REFUND_ORDER',
+  riskLevel: 'HIGH_RISK',
+  status: 'PENDING',
+  reason: '用户密码是 [REDACTED_PASSWORD]，申请退款',
+  redactedTrace: 'trace=trace-live 用户密码是 [REDACTED_PASSWORD]，身份证 [REDACTED_ID_CARD]',
+  requiresHumanDecision: true,
+  executed: false
+};
+
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -337,6 +350,50 @@ describe('App', () => {
     expect(screen.getByText(/indexedChunks=8/)).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
       '/admin/api/v1/knowledge/reindex',
+      expect.objectContaining({
+        method: 'POST'
+      })
+    );
+  });
+
+  it('creates approval requests from the approval debug panel', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path === '/health') {
+        return jsonResponse({ status: 'UP', service: 'customer-agent-app' });
+      }
+      if (path === '/api/orders/order-1001') {
+        return jsonResponse(orderResponse);
+      }
+      if (path === '/api/v1/approvals') {
+        expect(init?.method).toBe('POST');
+        expect(init?.headers).toEqual(expect.objectContaining({ 'X-Tenant-ID': 'tenant-demo' }));
+        expect(JSON.parse(String(init?.body))).toEqual({
+          orderId: 'order-1001',
+          action: 'REFUND_ORDER',
+          reason: '用户密码是 123456，申请退款'
+        });
+        return jsonResponse(approvalResponse);
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('审批原因'));
+    await user.type(screen.getByLabelText('审批原因'), '用户密码是 123456，申请退款');
+    await user.click(screen.getByRole('button', { name: '创建审批' }));
+
+    const approvalDebug = screen.getByLabelText('Approval Debug');
+    await waitFor(() => expect(within(approvalDebug).getByText('approval-trace-live')).toBeTruthy());
+    expect(within(approvalDebug).getByText('PENDING')).toBeTruthy();
+    expect(within(approvalDebug).getByText('HIGH_RISK')).toBeTruthy();
+    expect(within(approvalDebug).getByText(/executed=false/)).toBeTruthy();
+    expect(within(approvalDebug).getAllByText(/REDACTED_PASSWORD/).length).toBeGreaterThanOrEqual(1);
+    expect(within(approvalDebug).queryByText(/123456/)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/approvals',
       expect.objectContaining({
         method: 'POST'
       })

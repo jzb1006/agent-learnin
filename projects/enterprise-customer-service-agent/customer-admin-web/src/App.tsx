@@ -111,6 +111,22 @@ type KnowledgeSearchResponse = {
   matches: KnowledgeSearchMatch[];
 };
 
+type ApprovalAction = 'REFUND_ORDER' | 'CANCEL_ORDER' | 'RESCHEDULE_ORDER';
+
+type ApprovalResponse = {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  action: ApprovalAction;
+  riskLevel: string;
+  status: string;
+  reason: string;
+  redactedTrace: string;
+  requiresHumanDecision: boolean;
+  executed: boolean;
+  requestedAt: string;
+};
+
 const queryClient = new QueryClient();
 
 const initialHealth: HealthResponse = {
@@ -160,6 +176,20 @@ const initialKnowledgeItem = {
   version: '2026-06-30'
 };
 
+const initialApproval: ApprovalResponse = {
+  id: 'approval-demo',
+  tenantId: initialOrder.tenantId,
+  orderId: initialOrder.id,
+  action: 'REFUND_ORDER',
+  riskLevel: 'HIGH_RISK',
+  status: 'PENDING',
+  reason: '用户申请退款，等待人工审批。',
+  redactedTrace: 'trace=trace-demo orderId=order-1001 action=REFUND_ORDER executed=false',
+  requiresHumanDecision: true,
+  executed: false,
+  requestedAt: '2026-07-01T09:40:00Z'
+};
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -206,6 +236,10 @@ function DebugDashboard() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItemSummary[]>([]);
   const [searchResult, setSearchResult] = useState<KnowledgeSearchResponse | null>(null);
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
+  const [approvalAction, setApprovalAction] = useState<ApprovalAction>(initialApproval.action);
+  const [approvalReason, setApprovalReason] = useState('用户密码是 123456，申请退款');
+  const [approvalResult, setApprovalResult] = useState<ApprovalResponse | null>(initialApproval);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -313,6 +347,22 @@ function DebugDashboard() {
       listKnowledgeMutation.mutate({ tenantId: tenantId.trim() });
     }
   });
+  const approvalMutation = useMutation({
+    mutationFn: (payload: ApprovalCreatePayload) =>
+      requestJson<ApprovalResponse>('/api/v1/approvals', {
+        method: 'POST',
+        headers: tenantHeaders(payload.tenantId),
+        body: JSON.stringify(payload.request)
+      }),
+    onError: (error) => {
+      setApprovalError(error instanceof Error ? error.message : '审批创建失败');
+    },
+    onSuccess: (response) => {
+      setApprovalResult(response);
+      setApprovalReason(response.reason);
+      setApprovalError(null);
+    }
+  });
   const health = healthQuery.data;
   const order = orderQuery.data;
   const orderError = orderQuery.error instanceof Error ? orderQuery.error.message : null;
@@ -327,6 +377,8 @@ function DebugDashboard() {
     knowledgeContent.trim().length > 0;
   const canDeleteKnowledge = tenantId.trim().length > 0 && knowledgeItemId.trim().length > 0;
   const canSearchKnowledge = tenantId.trim().length > 0 && knowledgeSearch.trim().length > 0;
+  const canCreateApproval =
+    tenantId.trim().length > 0 && normalizedOrderId.length > 0 && approvalReason.trim().length > 0;
 
   function submitOrderLookup() {
     if (!canQueryOrder) {
@@ -395,6 +447,20 @@ function DebugDashboard() {
     searchKnowledgeMutation.mutate({
       tenantId: tenantId.trim(),
       query: knowledgeSearch.trim()
+    });
+  }
+
+  function createApproval() {
+    if (!canCreateApproval) {
+      return;
+    }
+    approvalMutation.mutate({
+      tenantId: tenantId.trim(),
+      request: {
+        orderId: normalizedOrderId,
+        action: approvalAction,
+        reason: approvalReason.trim()
+      }
     });
   }
 
@@ -574,6 +640,73 @@ function DebugDashboard() {
             </section>
           </Card>
 
+          <Card className="debug-panel" title="Approval Debug">
+            <section className="approval-debug" aria-label="Approval Debug">
+              <div className="approval-debug-form">
+                <label className="field-label" htmlFor="approval-action">
+                  审批动作
+                </label>
+                <select
+                  id="approval-action"
+                  className="native-select"
+                  value={approvalAction}
+                  onChange={(event) => setApprovalAction(event.target.value as ApprovalAction)}
+                >
+                  <option value="REFUND_ORDER">REFUND_ORDER</option>
+                  <option value="CANCEL_ORDER">CANCEL_ORDER</option>
+                  <option value="RESCHEDULE_ORDER">RESCHEDULE_ORDER</option>
+                </select>
+
+                <label className="field-label" htmlFor="approval-reason">
+                  审批原因
+                </label>
+                <Input.TextArea
+                  id="approval-reason"
+                  autoSize={{ minRows: 3, maxRows: 6 }}
+                  value={approvalReason}
+                  onChange={(event) => setApprovalReason(event.target.value)}
+                />
+
+                <Button
+                  aria-label="创建审批"
+                  disabled={!canCreateApproval}
+                  loading={approvalMutation.isPending}
+                  onClick={createApproval}
+                  type="primary"
+                >
+                  创建审批
+                </Button>
+              </div>
+              {approvalError ? <Alert className="approval-alert" message={approvalError} showIcon type="error" /> : null}
+              {approvalResult ? (
+                <div className="approval-result">
+                  <div className="approval-result-header">
+                    <Typography.Text strong>{approvalResult.id}</Typography.Text>
+                    <span className="tool-call-tags">
+                      <Tag color="red">{approvalResult.riskLevel}</Tag>
+                      <Tag color="orange">{approvalResult.status}</Tag>
+                    </span>
+                  </div>
+                  <Descriptions column={1} size="small">
+                    <Descriptions.Item label="Order">
+                      <Typography.Text code>{approvalResult.orderId}</Typography.Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Action">{approvalResult.action}</Descriptions.Item>
+                    <Descriptions.Item label="Human Decision">
+                      {String(approvalResult.requiresHumanDecision)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Execution">
+                      <Typography.Text code>executed={String(approvalResult.executed)}</Typography.Text>
+                    </Descriptions.Item>
+                  </Descriptions>
+                  <Typography.Paragraph className="reply-text">{approvalResult.redactedTrace}</Typography.Paragraph>
+                </div>
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              )}
+            </section>
+          </Card>
+
           <Card className="debug-panel chat-panel" title="Chat Console">
             <div className="chat-workbench">
               <div className="chat-form">
@@ -715,6 +848,15 @@ type KnowledgeItemPayload = {
     source: string;
     version: string;
     tags: string[];
+  };
+};
+
+type ApprovalCreatePayload = {
+  tenantId: string;
+  request: {
+    orderId: string;
+    action: ApprovalAction;
+    reason: string;
   };
 };
 
