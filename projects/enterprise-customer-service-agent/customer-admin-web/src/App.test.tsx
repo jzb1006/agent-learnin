@@ -25,7 +25,38 @@ const chatResponse = {
       durationMs: 12,
       resultSummary: 'order-1001 企业级 AI Agent 实战营 PAID'
     }
-  ]
+  ],
+  executionTrace: {
+    traceId: 'trace-live',
+    tenantId: 'tenant-demo',
+    conversationId: 'debug-session',
+    route: 'ORDER_LOOKUP',
+    riskLevel: 'READ_ONLY',
+    evidence: ['order:order-1001'],
+    finalAnswer: '模型回复：订单已支付，下周一开课。',
+    steps: [
+      {
+        name: 'intent',
+        detail: 'route=ORDER_LOOKUP confidence=0.95 orderId=order-1001 reason=命中订单查询'
+      },
+      {
+        name: 'retrieve/tool',
+        detail: 'order_lookup status=SUCCEEDED risk=READ_ONLY durationMs=12 summary=order-1001 企业级 AI Agent 实战营 PAID'
+      },
+      {
+        name: 'risk check',
+        detail: 'riskLevel=READ_ONLY permission=java-guarded approvalRequired=false'
+      },
+      {
+        name: 'response',
+        detail: 'sources=[order:order-1001] nextActions=[展示订单状态, 等待用户继续追问] finalAnswerLength=18'
+      },
+      {
+        name: 'trace',
+        detail: 'traceId=trace-live conversationId=debug-session toolCalls=1 evidence=1'
+      }
+    ]
+  }
 };
 
 const orderResponse = {
@@ -274,6 +305,15 @@ describe('App', () => {
     expect(screen.getByText('orderId=order-1001')).toBeTruthy();
     expect(screen.getByText('12ms')).toBeTruthy();
     expect(screen.getByText('order-1001 企业级 AI Agent 实战营 PAID')).toBeTruthy();
+    const agentLoop = screen.getByLabelText('Agent Loop');
+    expect(within(agentLoop).getByText('Agent Loop')).toBeTruthy();
+    expect(within(agentLoop).getByText('intent')).toBeTruthy();
+    expect(within(agentLoop).getByText('retrieve/tool')).toBeTruthy();
+    expect(within(agentLoop).getByText('risk check')).toBeTruthy();
+    expect(within(agentLoop).getByText('response')).toBeTruthy();
+    expect(within(agentLoop).getByText('trace')).toBeTruthy();
+    expect(within(agentLoop).getByText(/route=ORDER_LOOKUP/)).toBeTruthy();
+    expect(within(agentLoop).getByText(/toolCalls=1/)).toBeTruthy();
     expect(screen.getByText('Next Actions')).toBeTruthy();
     expect(screen.getByText('展示订单状态')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(

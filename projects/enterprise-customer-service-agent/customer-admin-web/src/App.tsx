@@ -42,6 +42,7 @@ type CustomerAgentResponse = {
   sources: string[];
   nextActions: string[];
   toolCalls: ToolCall[];
+  executionTrace: AgentExecutionTrace;
 };
 
 type ToolCall = {
@@ -51,6 +52,22 @@ type ToolCall = {
   riskLevel: string;
   durationMs: number;
   resultSummary: string;
+};
+
+type AgentExecutionTrace = {
+  traceId: string;
+  tenantId: string;
+  conversationId: string;
+  route: string;
+  riskLevel: string;
+  evidence: string[];
+  finalAnswer: string;
+  steps: AgentExecutionStep[];
+};
+
+type AgentExecutionStep = {
+  name: string;
+  detail: string;
 };
 
 type ApiErrorResponse = {
@@ -164,7 +181,38 @@ const initialChat: CustomerAgentResponse = {
       durationMs: 3,
       resultSummary: 'order-1001 企业级 AI Agent 实战营 PAID'
     }
-  ]
+  ],
+  executionTrace: {
+    traceId: 'trace-demo',
+    tenantId: 'tenant-demo',
+    conversationId: 'debug-session',
+    route: 'ORDER_LOOKUP',
+    riskLevel: 'READ_ONLY',
+    evidence: ['order:order-1001'],
+    finalAnswer: '已查询到订单 order-1001，课程为「企业级 AI Agent 实战营」，当前状态为 PAID。',
+    steps: [
+      {
+        name: 'intent',
+        detail: 'route=ORDER_LOOKUP confidence=0.95 orderId=order-1001 reason=命中订单查询'
+      },
+      {
+        name: 'retrieve/tool',
+        detail: 'order_lookup status=SUCCEEDED risk=READ_ONLY durationMs=3 summary=order-1001 企业级 AI Agent 实战营 PAID'
+      },
+      {
+        name: 'risk check',
+        detail: 'riskLevel=READ_ONLY permission=java-guarded approvalRequired=false'
+      },
+      {
+        name: 'response',
+        detail: 'sources=[order:order-1001] nextActions=[展示订单状态, 等待用户继续追问] finalAnswerLength=43'
+      },
+      {
+        name: 'trace',
+        detail: 'traceId=trace-demo conversationId=debug-session toolCalls=1 evidence=1'
+      }
+    ]
+  }
 };
 
 const initialKnowledgeItem = {
@@ -803,6 +851,26 @@ function DebugDashboard() {
                 ) : (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 )}
+
+                <Divider className="compact-divider" />
+                <section aria-label="Agent Loop">
+                  <Typography.Title level={3}>Agent Loop</Typography.Title>
+                  {chat.executionTrace.steps.length > 0 ? (
+                    <ol className="agent-loop">
+                      {chat.executionTrace.steps.map((step, index) => (
+                        <li key={`${step.name}-${index}`} className="agent-loop-step">
+                          <div className="agent-loop-step-header">
+                            <Tag color="blue">{index + 1}</Tag>
+                            <Typography.Text strong>{step.name}</Typography.Text>
+                          </div>
+                          <Typography.Paragraph className="agent-loop-detail">{step.detail}</Typography.Paragraph>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  )}
+                </section>
 
                 <Divider className="compact-divider" />
                 <Typography.Title level={3}>Sources</Typography.Title>

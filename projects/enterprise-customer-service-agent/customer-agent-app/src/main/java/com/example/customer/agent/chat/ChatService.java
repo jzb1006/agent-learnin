@@ -84,7 +84,7 @@ public class ChatService {
                 message,
                 routeResult.route(),
                 effectiveOrderId(orderId, toolExecution));
-        response = withMemory(response, updatedMemory);
+        response = withExecutionTrace(response, routeResult, toolExecution, riskLevel, tenantId, orderId, updatedMemory);
         log.info(
                 "chat_reply_success tenantId={} conversationId={} orderId={} route={} riskLevel={} traceId={}",
                 tenantId,
@@ -387,7 +387,22 @@ public class ChatService {
         return requestedOrderId;
     }
 
-    private CustomerAgentResponse withMemory(CustomerAgentResponse response, ChatMemorySnapshot memorySnapshot) {
+    private CustomerAgentResponse withExecutionTrace(
+            CustomerAgentResponse response,
+            IntentRouteResult routeResult,
+            ToolExecution toolExecution,
+            ToolRiskLevel riskLevel,
+            String tenantId,
+            String requestedOrderId,
+            ChatMemorySnapshot memorySnapshot) {
+        var executionTrace = executionTrace(
+                response,
+                routeResult,
+                toolExecution,
+                riskLevel,
+                tenantId,
+                requestedOrderId,
+                memorySnapshot.conversationId());
         return new CustomerAgentResponse(
                 response.route(),
                 response.answer(),
@@ -397,7 +412,71 @@ public class ChatService {
                 response.traceId(),
                 response.toolCalls(),
                 memorySnapshot.conversationId(),
-                memorySnapshot.summary());
+                memorySnapshot.summary(),
+                executionTrace);
+    }
+
+    private CustomerAgentExecutionTrace executionTrace(
+            CustomerAgentResponse response,
+            IntentRouteResult routeResult,
+            ToolExecution toolExecution,
+            ToolRiskLevel riskLevel,
+            String tenantId,
+            String requestedOrderId,
+            String conversationId) {
+        var evidence = response.sources();
+        var steps = List.of(
+                new CustomerAgentExecutionStep(
+                        "intent",
+                        "route=%s confidence=%.2f orderId=%s reason=%s".formatted(
+                                routeResult.route().name(),
+                                routeResult.confidence(),
+                                requestedOrderId == null ? "" : requestedOrderId,
+                                routeResult.reason())),
+                new CustomerAgentExecutionStep(
+                        "retrieve/tool",
+                        toolStepDetail(toolExecution)),
+                new CustomerAgentExecutionStep(
+                        "risk check",
+                        "riskLevel=%s permission=java-guarded approvalRequired=%s".formatted(
+                                riskLevel.name(),
+                                riskLevel == ToolRiskLevel.HIGH_RISK)),
+                new CustomerAgentExecutionStep(
+                        "response",
+                        "sources=%s nextActions=%s finalAnswerLength=%d".formatted(
+                                evidence,
+                                response.nextActions(),
+                                response.answer().length())),
+                new CustomerAgentExecutionStep(
+                        "trace",
+                        "traceId=%s conversationId=%s toolCalls=%d evidence=%d".formatted(
+                                response.traceId(),
+                                conversationId,
+                                response.toolCalls().size(),
+                                evidence.size())));
+        return new CustomerAgentExecutionTrace(
+                response.traceId(),
+                tenantId,
+                conversationId,
+                response.route(),
+                response.riskLevel(),
+                evidence,
+                response.answer(),
+                steps);
+    }
+
+    private String toolStepDetail(ToolExecution toolExecution) {
+        if (toolExecution.toolCalls().isEmpty()) {
+            return "toolCalls=0 result=not-required";
+        }
+        return toolExecution.toolCalls().stream()
+                .map(toolCall -> "%s status=%s risk=%s durationMs=%d summary=%s".formatted(
+                        toolCall.name(),
+                        toolCall.status(),
+                        toolCall.riskLevel(),
+                        toolCall.durationMs(),
+                        toolCall.resultSummary()))
+                .collect(java.util.stream.Collectors.joining("; "));
     }
 
     private void requireModelMetadataMatchesJavaDecision(

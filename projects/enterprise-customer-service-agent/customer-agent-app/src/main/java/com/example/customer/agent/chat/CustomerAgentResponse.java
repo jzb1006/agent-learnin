@@ -16,6 +16,7 @@ import java.util.List;
  * @param toolCalls 工具调用摘要
  * @param conversationId 会话标识
  * @param memorySummary 会话压缩摘要
+ * @param executionTrace Agent 执行链路 trace
  * @author jiangzhibin
  * @since 2026-06-27 16:05:00
  */
@@ -28,7 +29,8 @@ public record CustomerAgentResponse(
         String traceId,
         List<CustomerAgentToolCall> toolCalls,
         String conversationId,
-        String memorySummary) {
+        String memorySummary,
+        CustomerAgentExecutionTrace executionTrace) {
 
     /**
      * 创建无工具调用的客服 Agent 结构化响应。
@@ -47,7 +49,7 @@ public record CustomerAgentResponse(
             String riskLevel,
             List<String> nextActions,
             String traceId) {
-        this(route, answer, sources, riskLevel, nextActions, traceId, List.of(), "", "");
+        this(route, answer, sources, riskLevel, nextActions, traceId, List.of(), "", "", CustomerAgentExecutionTrace.empty());
     }
 
     /**
@@ -69,7 +71,7 @@ public record CustomerAgentResponse(
             List<String> nextActions,
             String traceId,
             List<CustomerAgentToolCall> toolCalls) {
-        this(route, answer, sources, riskLevel, nextActions, traceId, toolCalls, "", "");
+        this(route, answer, sources, riskLevel, nextActions, traceId, toolCalls, "", "", CustomerAgentExecutionTrace.empty());
     }
 
     /**
@@ -81,5 +83,6 @@ public record CustomerAgentResponse(
         toolCalls = List.copyOf(toolCalls);
         conversationId = conversationId == null ? "" : conversationId;
         memorySummary = memorySummary == null ? "" : memorySummary;
+        executionTrace = executionTrace == null ? CustomerAgentExecutionTrace.empty() : executionTrace;
     }
 }

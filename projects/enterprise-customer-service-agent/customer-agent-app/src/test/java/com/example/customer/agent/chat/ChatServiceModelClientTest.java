@@ -210,6 +210,30 @@ class ChatServiceModelClientTest {
     }
 
     @Test
+    void shouldExposeTraceableAgentLoopForEachChatReply() {
+        var response = chatService(properties(false), new RecordingChatModelClient(List.of()))
+                .reply(new ChatRequest("tenant-demo", "帮我查询订单 order-1001 什么时候开课", "conversation-day26"));
+
+        assertThat(response.executionTrace().traceId()).isEqualTo(response.traceId());
+        assertThat(response.executionTrace().tenantId()).isEqualTo("tenant-demo");
+        assertThat(response.executionTrace().conversationId()).isEqualTo("conversation-day26");
+        assertThat(response.executionTrace().route()).isEqualTo(ConversationRoute.ORDER_LOOKUP.name());
+        assertThat(response.executionTrace().riskLevel()).isEqualTo("READ_ONLY");
+        assertThat(response.executionTrace().evidence()).containsExactly("order:order-1001");
+        assertThat(response.executionTrace().finalAnswer()).isEqualTo(response.answer());
+        assertThat(response.executionTrace().steps())
+                .extracting(CustomerAgentExecutionStep::name)
+                .containsExactly("intent", "retrieve/tool", "risk check", "response", "trace");
+        assertThat(response.executionTrace().steps().get(0).detail())
+                .contains("route=ORDER_LOOKUP")
+                .contains("orderId=order-1001");
+        assertThat(response.executionTrace().steps().get(1).detail()).contains("order_lookup");
+        assertThat(response.executionTrace().steps().get(2).detail()).contains("READ_ONLY");
+        assertThat(response.executionTrace().steps().get(3).detail()).contains("sources=[order:order-1001]");
+        assertThat(response.executionTrace().steps().get(4).detail()).contains("toolCalls=1");
+    }
+
+    @Test
     void shouldExposeHumanHandoffIntentWithoutCreatingTicket() {
         var response = chatService(properties(false), new RecordingChatModelClient(List.of()))
                 .reply(new ChatRequest("tenant-demo", "我要转人工客服"));

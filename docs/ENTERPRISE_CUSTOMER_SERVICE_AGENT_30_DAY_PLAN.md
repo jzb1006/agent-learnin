@@ -141,6 +141,7 @@ Spring Boot + Spring AI + Tool Calling + RAG + MCP + Memory + 安全审批 + 观
 | Day 23 | 已完成 | 2026-07-01 | [实现 MCP Client](day-23-mcp-client.md) |
 | Day 24 | 已完成 | 2026-07-01 | [Memory 与上下文压缩](day-24-memory-context-compression.md) |
 | Day 25 | 已完成 | 2026-07-01 | [安全脱敏与审批](day-25-security-redaction-approval.md) |
+| Day 26 | 已完成 | 2026-07-02 | [Agent Loop 编排](day-26-agent-loop-orchestration.md) |
 
 ## 阶段 1：项目建模与 Spring Boot 骨架
 
